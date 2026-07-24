@@ -47,10 +47,9 @@ Before the release workflow can run for the first time:
 5. Create an Expo access token and save it in the GitHub repository as the
    Actions secret `EXPO_TOKEN`.
 
-Run the **Mobile APK release** workflow manually to get an Actions artifact
-without creating a release. Supply a tag such as `mobile-v1.0.0` to also create
-a GitHub Release, or push a `mobile-v*` tag and the workflow will create the
-release automatically.
+Run the **Release Android APK** workflow manually to get an Actions artifact
+without creating a release. Supply a tag such as `v1.0.0` to also create or
+update a GitHub Release. Releases are never triggered by a branch or tag push.
 
 The build embeds `https://zamzam-api.fly.dev` as its API endpoint. EAS manages
 the signing key; no keystore or password is stored in Git.
