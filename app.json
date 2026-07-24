@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "زمزم للتحفيظ",
+    "slug": "zamzam-mobile",
+    "scheme": "zamzam",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.zamzam.tahfiz",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "نستخدم بصمة الوجه لحماية بيانات الطلاب المحفوظة على الجهاز."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.zamzam.tahfiz"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true,
+          "enableFTS": true
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "نستخدم بصمة الوجه لحماية بيانات الطلاب المحفوظة على الجهاز."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "نستخدم بصمة الوجه لفتح تطبيق زمزم بأمان."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2403125c-7113-4f99-b385-93c5dec9497f"
+      }
+    },
+    "owner": "ahmedwaelwanas",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2403125c-7113-4f99-b385-93c5dec9497f"
+    }
+  }
+}
