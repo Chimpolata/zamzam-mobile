@@ -5,12 +5,14 @@ import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { useApp } from '../../src/context/AppContext'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 
 export default function DashboardScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { user, activeTahfizId, syncing, syncNow, lastSync } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [counts, setCounts] = useState({ sessions: 0, students: 0, pending: 0, conflicts: 0 })
   const [online, setOnline] = useState<boolean | null>(null)
   const membership = user?.memberships.find((item) => item.tahfiz_id === activeTahfizId)
@@ -50,7 +52,7 @@ export default function DashboardScreen() {
           <Text style={commonStyles.subtitle}>مرحباً، {user?.username}</Text>
           <Text style={commonStyles.title}>{membership?.tahfiz_name ?? 'زمزم'}</Text>
         </View>
-        <View style={[styles.connection, { backgroundColor: online ? '#d1fae5' : '#fef3c7' }]}>
+        <View style={[styles.connection, { backgroundColor: online ? colors.successSurface : colors.warningSurface }]}>
           <Text style={{ color: online ? colors.success : colors.warning, fontWeight: '800' }}>
             {online ? 'متصل' : 'دون اتصال'}
           </Text>
@@ -85,6 +87,8 @@ export default function DashboardScreen() {
 }
 
 function Stat({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, accent && { color: colors.warning }]}>{value}</Text>
@@ -93,14 +97,14 @@ function Stat({ label, value, accent = false }: { label: string; value: number; 
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   welcome: { ...commonStyles.card, flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
   connection: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   grid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   stat: { ...commonStyles.card, width: '48%', minHeight: 112, alignItems: 'center', justifyContent: 'center', gap: 7 },
   statValue: { fontSize: 30, fontWeight: '900', color: colors.primary },
   statLabel: { fontSize: 12, color: colors.muted, textAlign: 'center' },
-  primaryCard: { ...commonStyles.card, backgroundColor: '#cffafe', borderColor: '#67e8f9', gap: 8 },
+  primaryCard: { ...commonStyles.card, backgroundColor: colors.primarySurface, borderColor: colors.primary, gap: 8 },
   primaryTitle: { fontSize: 19, fontWeight: '900', color: colors.primaryDark, textAlign: 'right' },
   primaryText: { color: colors.text, lineHeight: 22, textAlign: 'right' },
 })

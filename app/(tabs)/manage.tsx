@@ -3,11 +3,13 @@ import React from 'react'
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native'
 
 import { useApp } from '../../src/context/AppContext'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 
 export default function ManageScreen() {
   const router = useRouter()
   const { user } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const admin = user?.role === 'admin' || user?.role === 'super_admin'
   const items = [
     ['students', 'الطلاب', '/students', true],
@@ -35,7 +37,7 @@ export default function ManageScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   item: { ...commonStyles.card, minHeight: 64, flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   label: { flex: 1, color: colors.text, textAlign: 'right', fontWeight: '800' },
   online: { color: colors.primary, fontSize: 11, fontWeight: '700' },

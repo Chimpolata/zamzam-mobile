@@ -6,12 +6,14 @@ import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react
 import { useApp } from '../src/context/AppContext'
 import { listConflicts, resolveConflict } from '../src/db/database'
 import { getDeviceId } from '../src/lib/session-store'
-import { colors, commonStyles } from '../src/theme'
+import { useTheme } from '../src/theme'
 import type { SyncConflict } from '../src/types'
 
 export default function ConflictsScreen() {
   const db = useSQLiteContext()
   const { activeTahfizId, syncNow } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [items, setItems] = useState<SyncConflict[]>([])
 
   const load = useCallback(async () => {
@@ -66,6 +68,8 @@ export default function ConflictsScreen() {
 }
 
 function Version({ title, value }: { title: string; value: Record<string, unknown> | null }) {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const fields = value
     ? Object.entries(value).filter(([key]) => ['status', 'notes', 'quality_score', 'mistakes', 'from_page', 'to_page'].includes(key))
     : []
@@ -79,7 +83,7 @@ function Version({ title, value }: { title: string; value: Record<string, unknow
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   title: { color: colors.danger, textAlign: 'right', fontWeight: '900', fontSize: 17 },
   empty: { color: colors.success, fontWeight: '800', textAlign: 'center' },
   compare: { flexDirection: 'row-reverse', gap: 8 },
@@ -89,6 +93,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row-reverse', gap: 8 },
   local: { flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 12, alignItems: 'center' },
   localText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  server: { flex: 1, borderColor: colors.border, borderWidth: 1, padding: 12, borderRadius: 12, alignItems: 'center' },
+  server: { flex: 1, backgroundColor: colors.input, borderColor: colors.border, borderWidth: 1, padding: 12, borderRadius: 12, alignItems: 'center' },
   serverText: { color: colors.text, fontWeight: '800', fontSize: 12 },
 })

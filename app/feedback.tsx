@@ -15,7 +15,7 @@ import {
 
 import { useApp } from '../src/context/AppContext'
 import { api } from '../src/lib/api'
-import { colors, commonStyles } from '../src/theme'
+import { useTheme } from '../src/theme'
 import type { FeedbackCategory, FeedbackReport, FeedbackStatus } from '../src/types'
 
 const categoryLabels: Record<FeedbackCategory, string> = {
@@ -40,6 +40,8 @@ export default function FeedbackScreen() {
 }
 
 function FeedbackForm({ tahfizId }: { tahfizId: number | null }) {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [category, setCategory] = useState<FeedbackCategory>('bug')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -121,6 +123,8 @@ function FeedbackForm({ tahfizId }: { tahfizId: number | null }) {
 }
 
 function FeedbackReview() {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [items, setItems] = useState<FeedbackReport[]>([])
   const [filter, setFilter] = useState<'all' | FeedbackStatus>('open')
   const [loading, setLoading] = useState(true)
@@ -235,17 +239,17 @@ function FeedbackReview() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   label: { color: colors.text, fontWeight: '900', textAlign: 'right', marginBottom: 12 },
   choiceRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
-  choice: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff' },
+  choice: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.input },
   choiceActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   choiceText: { color: colors.text, fontSize: 12, fontWeight: '800' },
   choiceTextActive: { color: '#fff' },
   description: { minHeight: 140, paddingTop: 14 },
   disabled: { opacity: 0.5 },
   filters: { flexDirection: 'row-reverse', gap: 8, paddingVertical: 4 },
-  filter: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#fff' },
+  filter: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: colors.input },
   filterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterText: { color: colors.text, fontWeight: '800', fontSize: 12 },
   filterTextActive: { color: '#fff' },
@@ -256,6 +260,6 @@ const styles = StyleSheet.create({
   reportTitle: { color: colors.text, fontWeight: '900', fontSize: 17, textAlign: 'right', marginTop: 10 },
   reportDescription: { color: colors.text, lineHeight: 22, textAlign: 'right', marginVertical: 8 },
   page: { color: colors.muted, fontSize: 11, textAlign: 'left', marginTop: 6 },
-  note: { color: colors.text, backgroundColor: '#f1f5f9', borderRadius: 10, padding: 10, textAlign: 'right', marginTop: 10 },
+  note: { color: colors.text, backgroundColor: colors.surfaceMuted, borderRadius: 10, padding: 10, textAlign: 'right', marginTop: 10 },
   cancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
 })

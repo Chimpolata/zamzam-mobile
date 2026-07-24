@@ -23,7 +23,7 @@ import {
 } from '../../src/db/database'
 import { api } from '../../src/lib/api'
 import { getDeviceId } from '../../src/lib/session-store'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 import type { Session } from '../../src/types'
 
 interface AttendanceRow {
@@ -44,6 +44,8 @@ export default function SessionScreen() {
   const sessionId = Number(id)
   const db = useSQLiteContext()
   const { activeTahfizId, syncNow, syncing } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [session, setSession] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null>(null)
   const [students, setStudents] = useState<AttendanceRow[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
@@ -193,6 +195,8 @@ function ProgressModal({
   onClose(): void
 }) {
   const db = useSQLiteContext()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [fromPage, setFromPage] = useState('')
   const [toPage, setToPage] = useState('')
   const [fromSurah, setFromSurah] = useState('')
@@ -315,7 +319,7 @@ function ProgressModal({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   summary: { ...commonStyles.card, flexDirection: 'row-reverse', alignItems: 'center', gap: 12, marginBottom: 10 },
   date: { color: colors.text, fontSize: 17, fontWeight: '900', textAlign: 'right' },
@@ -329,7 +333,7 @@ const styles = StyleSheet.create({
   statusSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   statusText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   statusTextSelected: { color: '#fff' },
-  progressButton: { backgroundColor: '#ecfeff', borderRadius: 12, padding: 11, alignItems: 'center' },
+  progressButton: { backgroundColor: colors.primarySurface, borderRadius: 12, padding: 11, alignItems: 'center' },
   progressButtonText: { color: colors.primaryDark, fontWeight: '800' },
   formRow: { flexDirection: 'row-reverse', gap: 10 },
   half: { flex: 1 },

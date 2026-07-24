@@ -16,11 +16,13 @@ import {
 
 import { useApp } from '../../src/context/AppContext'
 import { api } from '../../src/lib/api'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 
 export default function OnlineDataScreen() {
   const params = useLocalSearchParams<{ screen?: string; endpoint?: string; label?: string }>()
   const { activeTahfizId } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -161,6 +163,8 @@ function RecordEditor({
   onClose(): void
   onSaved(): Promise<void>
 }) {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const fields = editorFields[screen] ?? []
   const [values, setValues] = useState<Record<string, any>>({})
   const [busy, setBusy] = useState(false)
@@ -315,7 +319,7 @@ function fieldLabel(key: string) {
   return labels[key] ?? key.replaceAll('_', ' ')
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   error: { color: colors.warning, textAlign: 'right', fontWeight: '800' },
   itemTitle: { color: colors.text, textAlign: 'right', fontSize: 17, fontWeight: '900' },
   field: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 12 },
@@ -324,7 +328,7 @@ const styles = StyleSheet.create({
   editHint: { color: colors.primary, fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 4 },
   switchRow: { ...commonStyles.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchLabel: { color: colors.text, fontWeight: '800', textAlign: 'right' },
-  deleteButton: { minHeight: 50, borderWidth: 1, borderColor: '#fecaca', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  deleteButton: { minHeight: 50, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.dangerSurface, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   deleteText: { color: colors.danger, fontWeight: '900' },
   cancelButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
 })

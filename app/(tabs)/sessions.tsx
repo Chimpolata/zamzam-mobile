@@ -6,13 +6,15 @@ import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput,
 import { useApp } from '../../src/context/AppContext'
 import { listSessions } from '../../src/db/database'
 import { api } from '../../src/lib/api'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 import type { Session } from '../../src/types'
 
 export default function SessionsScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { activeTahfizId, user, syncNow } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [sessions, setSessions] = useState<Array<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>>([])
   const [editing, setEditing] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null | undefined>(undefined)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -107,7 +109,7 @@ export default function SessionsScreen() {
             <Text style={commonStyles.subtitle}>الإصدار {item.version}</Text>
           </View>
           {admin ? <TouchableOpacity onPress={() => remove(item)} hitSlop={10}><Text style={styles.delete}>حذف</Text></TouchableOpacity> : null}
-          <View style={[styles.badge, { backgroundColor: item.is_confirmed ? '#e2e8f0' : '#d1fae5' }]}>
+          <View style={[styles.badge, { backgroundColor: item.is_confirmed ? colors.surfaceMuted : colors.successSurface }]}>
             <Text style={{ color: item.is_confirmed ? colors.muted : colors.success, fontWeight: '800' }}>
               {item.is_confirmed ? 'مؤكدة' : 'مفتوحة'}
             </Text>
@@ -134,7 +136,7 @@ export default function SessionsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   row: { ...commonStyles.card, flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
   date: { fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'right' },
   badge: { borderRadius: 20, paddingHorizontal: 11, paddingVertical: 6 },

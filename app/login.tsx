@@ -12,11 +12,13 @@ import {
 } from 'react-native'
 
 import { useApp } from '../src/context/AppContext'
-import { colors, commonStyles } from '../src/theme'
+import { useTheme } from '../src/theme'
 
 export default function LoginScreen() {
   const router = useRouter()
   const { login } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -79,7 +81,7 @@ export default function LoginScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   screen: { flex: 1, justifyContent: 'center', padding: 22, backgroundColor: colors.background },
   hero: { alignItems: 'center', marginBottom: 28, gap: 8 },
   logo: { color: colors.primary, fontWeight: '900', fontSize: 52 },

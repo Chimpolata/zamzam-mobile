@@ -7,10 +7,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AppProvider, useApp } from '../src/context/AppContext'
 import { migrateDatabase } from '../src/db/database'
-import { colors, commonStyles } from '../src/theme'
+import { ThemeProvider, useTheme } from '../src/theme'
 
 function LockedGate({ children }: { children: React.ReactNode }) {
   const { ready, user, locked, unlock } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   if (!ready) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
   }
@@ -30,32 +32,41 @@ function LockedGate({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <SQLiteProvider databaseName="zamzam-mobile.db" onInit={migrateDatabase}>
-        <AppProvider>
-          <LockedGate>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{
-              headerTitleAlign: 'center',
-              headerTintColor: colors.text,
-              headerStyle: { backgroundColor: colors.surface },
-              contentStyle: { backgroundColor: colors.background },
-            }}>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="session/[id]" options={{ title: 'تسجيل الحلقة' }} />
-              <Stack.Screen name="conflicts" options={{ title: 'تعارضات المزامنة' }} />
-              <Stack.Screen name="feedback" options={{ title: 'الملاحظات والبلاغات' }} />
-              <Stack.Screen name="online/[screen]" options={{ title: 'زمزم' }} />
-            </Stack>
-          </LockedGate>
-        </AppProvider>
-      </SQLiteProvider>
+      <ThemeProvider>
+        <SQLiteProvider databaseName="zamzam-mobile.db" onInit={migrateDatabase}>
+          <AppProvider>
+            <AppNavigation />
+          </AppProvider>
+        </SQLiteProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   )
 }
 
-const styles = StyleSheet.create({
+function AppNavigation() {
+  const { colors, isDark } = useTheme()
+  return (
+    <LockedGate>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack screenOptions={{
+        headerTitleAlign: 'center',
+        headerTintColor: colors.text,
+        headerStyle: { backgroundColor: colors.surface },
+        contentStyle: { backgroundColor: colors.background },
+      }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="session/[id]" options={{ title: 'تسجيل الحلقة' }} />
+        <Stack.Screen name="conflicts" options={{ title: 'تعارضات المزامنة' }} />
+        <Stack.Screen name="feedback" options={{ title: 'الملاحظات والبلاغات' }} />
+        <Stack.Screen name="online/[screen]" options={{ title: 'زمزم' }} />
+      </Stack>
+    </LockedGate>
+  )
+}
+
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   lock: { flex: 1, padding: 28, gap: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   logo: { fontSize: 44, fontWeight: '900', color: colors.primary },

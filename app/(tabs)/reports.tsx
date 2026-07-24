@@ -4,11 +4,13 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 
 import { useApp } from '../../src/context/AppContext'
 import { api } from '../../src/lib/api'
-import { colors, commonStyles } from '../../src/theme'
+import { useTheme } from '../../src/theme'
 
 export default function ReportsScreen() {
   const router = useRouter()
   const { activeTahfizId } = useApp()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [summary, setSummary] = useState<Record<string, any> | null>(null)
   const [error, setError] = useState('')
 
@@ -69,7 +71,7 @@ function labelFor(value: string) {
   return labels[value] ?? value.replaceAll('_', ' ')
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   warning: { color: colors.warning, textAlign: 'right' },
   grid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 9 },
   stat: { ...commonStyles.card, width: '48%', alignItems: 'center' },

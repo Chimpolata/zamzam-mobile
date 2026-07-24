@@ -4,11 +4,13 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 
 import { useApp } from '../../src/context/AppContext'
 import { api } from '../../src/lib/api'
-import { colors, commonStyles } from '../../src/theme'
+import { type ThemeMode, useTheme } from '../../src/theme'
 
 export default function MoreScreen() {
   const router = useRouter()
   const { user, activeTahfizId, switchTahfiz, logout } = useApp()
+  const { colors, commonStyles, mode, setMode } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   const [supportTahfiz, setSupportTahfiz] = useState<Array<{ id: number; name: string; status: string }>>([])
 
   useEffect(() => {
@@ -72,6 +74,26 @@ export default function MoreScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      <View style={commonStyles.card}>
+        <Text style={styles.section}>مظهر التطبيق</Text>
+        <View style={styles.themeChoices}>
+          {([
+            ['system', 'حسب الجهاز'],
+            ['light', 'فاتح'],
+            ['dark', 'داكن'],
+          ] as Array<[ThemeMode, string]>).map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => void setMode(value)}
+              style={[styles.themeChoice, mode === value && styles.themeChoiceActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === value }}
+            >
+              <Text style={[styles.themeChoiceText, mode === value && styles.themeChoiceTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
       <Menu label="إعدادات التحفيظ" onPress={() => router.push({
         pathname: '/online/[screen]', params: { screen: 'settings', endpoint: '/tahfiz/settings', label: 'إعدادات التحفيظ' },
       })} />
@@ -98,18 +120,25 @@ export default function MoreScreen() {
 }
 
 function Menu({ label, onPress }: { label: string; onPress(): void }) {
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
   return <TouchableOpacity style={styles.menu} onPress={onPress}><Text style={styles.menuLabel}>{label}</Text><Text style={styles.arrow}>‹</Text></TouchableOpacity>
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   section: { color: colors.text, fontWeight: '900', textAlign: 'right', marginBottom: 10 },
   membership: { flexDirection: 'row-reverse', alignItems: 'center', borderRadius: 13, padding: 11, gap: 8 },
-  membershipActive: { backgroundColor: '#ecfeff' },
+  membershipActive: { backgroundColor: colors.primarySurface },
   membershipName: { color: colors.text, fontWeight: '800', textAlign: 'right' },
   current: { color: colors.primary, fontSize: 11, fontWeight: '800' },
+  themeChoices: { flexDirection: 'row-reverse', gap: 8 },
+  themeChoice: { flex: 1, minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.input },
+  themeChoiceActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  themeChoiceText: { color: colors.text, fontSize: 12, fontWeight: '800' },
+  themeChoiceTextActive: { color: '#ffffff' },
   menu: { ...commonStyles.card, flexDirection: 'row-reverse', alignItems: 'center', minHeight: 60 },
   menuLabel: { flex: 1, textAlign: 'right', color: colors.text, fontWeight: '800' },
   arrow: { color: colors.primary, fontSize: 28 },
-  logout: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: '#fecaca', alignItems: 'center', justifyContent: 'center' },
+  logout: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.dangerSurface, alignItems: 'center', justifyContent: 'center' },
   logoutText: { color: colors.danger, fontWeight: '900' },
 })
