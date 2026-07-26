@@ -197,7 +197,84 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
       )
       if (!pending) await upsertProgress(tx, row, false)
     }
+    await pruneMissingBootstrapRows(tx, data)
   })
+}
+
+function notInClause(column: string, ids: number[]) {
+  if (ids.length === 0) return { sql: '1=1', args: [] as number[] }
+  return {
+    sql: `${column} NOT IN (${ids.map(() => '?').join(',')})`,
+    args: ids,
+  }
+}
+
+async function pruneMissingBootstrapRows(db: SQLiteDatabase, data: Bootstrap) {
+  const tahfizId = data.tahfiz.id
+  const progress = notInClause('id', data.quran_progress.map((item) => item.id))
+  await db.runAsync(
+    `DELETE FROM quran_progress
+     WHERE tahfiz_id=? AND ${progress.sql}
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox
+         WHERE outbox.tahfiz_id=quran_progress.tahfiz_id
+           AND outbox.entity_type='quran_progress'
+           AND outbox.entity_key=CAST(quran_progress.session_id AS TEXT)||':'||
+             CAST(quran_progress.student_id AS TEXT)||':'||quran_progress.category
+       )`,
+    tahfizId,
+    ...progress.args,
+  )
+
+  const attendance = notInClause('id', data.attendance.map((item) => item.id))
+  await db.runAsync(
+    `DELETE FROM attendance
+     WHERE tahfiz_id=? AND ${attendance.sql}
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox
+         WHERE outbox.tahfiz_id=attendance.tahfiz_id
+           AND outbox.entity_type='attendance'
+           AND outbox.entity_key=CAST(attendance.session_id AS TEXT)||':'||CAST(attendance.student_id AS TEXT)
+       )`,
+    tahfizId,
+    ...attendance.args,
+  )
+
+  const sessions = notInClause('id', data.sessions.map((item) => item.id))
+  await db.runAsync(
+    `DELETE FROM sessions
+     WHERE tahfiz_id=? AND ${sessions.sql}
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox
+         WHERE outbox.tahfiz_id=sessions.tahfiz_id
+           AND outbox.entity_key LIKE CAST(sessions.id AS TEXT)||':%'
+       )`,
+    tahfizId,
+    ...sessions.args,
+  )
+
+  const students = notInClause('id', data.students.map((item) => item.id))
+  await db.runAsync(
+    `DELETE FROM students
+     WHERE tahfiz_id=? AND ${students.sql}
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox
+         WHERE outbox.tahfiz_id=students.tahfiz_id
+           AND (
+             (outbox.entity_type='attendance' AND outbox.entity_key LIKE '%:'||CAST(students.id AS TEXT))
+             OR (outbox.entity_type='quran_progress' AND outbox.entity_key LIKE '%:'||CAST(students.id AS TEXT)||':%')
+           )
+       )`,
+    tahfizId,
+    ...students.args,
+  )
+
+  const sheikhs = notInClause('id', data.sheikhs.map((item) => item.id))
+  await db.runAsync(
+    `DELETE FROM sheikhs WHERE tahfiz_id=? AND ${sheikhs.sql}`,
+    tahfizId,
+    ...sheikhs.args,
+  )
 }
 
 async function upsertStudent(db: SQLiteDatabase, row: Student) {

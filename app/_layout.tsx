@@ -2,7 +2,7 @@ import { Stack } from 'expo-router'
 import { SQLiteProvider } from 'expo-sqlite'
 import { StatusBar } from 'expo-status-bar'
 import React from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AppProvider, useApp } from '../src/context/AppContext'
@@ -19,7 +19,12 @@ function LockedGate({ children }: { children: React.ReactNode }) {
   if (user && locked) {
     return (
       <View style={styles.lock}>
-        <Text style={styles.logo}>زمزم</Text>
+        <Image
+          source={require('../assets/icon.png')}
+          style={styles.logo}
+          accessibilityLabel="شعار زمزم"
+        />
+        <Text style={styles.brand}>زمزم</Text>
         <Text style={commonStyles.title}>بياناتك محمية</Text>
         <Text style={commonStyles.subtitle}>افتح التطبيق ببصمة الجهاز أو رمز القفل</Text>
         <Text onPress={() => void unlock()} style={styles.unlock}>فتح التطبيق</Text>
@@ -56,8 +61,18 @@ function AppNavigation() {
       }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ title: 'تسجيل تحفيظ جديد' }} />
+        <Stack.Screen name="pending" options={{ headerShown: false }} />
+        <Stack.Screen name="invite/[token]" options={{ title: 'دعوة للانضمام' }} />
+        <Stack.Screen name="platform" options={{ title: 'إدارة المنصة' }} />
+        <Stack.Screen name="invitations" options={{ title: 'دعوات الانضمام' }} />
+        <Stack.Screen name="warnings" options={{ title: 'الإنذارات' }} />
+        <Stack.Screen name="student/[id]/progress" options={{ title: 'تقدم الطالب' }} />
+        <Stack.Screen name="student/[id]/exceptions" options={{ title: 'أيام العذر' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="session/[id]" options={{ title: 'تسجيل الحلقة' }} />
+        <Stack.Screen name="attendance-history" options={{ title: 'سجل الحضور' }} />
+        <Stack.Screen name="progress-history" options={{ title: 'تقدم القرآن' }} />
         <Stack.Screen name="conflicts" options={{ title: 'تعارضات المزامنة' }} />
         <Stack.Screen name="feedback" options={{ title: 'الملاحظات والبلاغات' }} />
         <Stack.Screen name="online/[screen]" options={{ title: 'زمزم' }} />
@@ -69,7 +84,8 @@ function AppNavigation() {
 const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   lock: { flex: 1, padding: 28, gap: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  logo: { fontSize: 44, fontWeight: '900', color: colors.primary },
+  logo: { width: 104, height: 104, borderRadius: 24 },
+  brand: { fontSize: 34, fontWeight: '900', color: colors.primary },
   unlock: {
     overflow: 'hidden', color: '#fff', backgroundColor: colors.primary, fontSize: 17,
     fontWeight: '800', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16,

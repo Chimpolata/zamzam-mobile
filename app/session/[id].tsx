@@ -1,6 +1,6 @@
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSQLiteContext } from 'expo-sqlite'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -39,29 +39,72 @@ interface AttendanceRow {
   dirty: number
 }
 
+interface LocalProgressRow {
+  id: number
+  student_id: number
+  category: 'new_memorization' | 'recent_revision' | 'old_revision' | 'test'
+  range_type: 'page' | 'surah_ayah'
+  from_surah: number | null
+  from_ayah: number | null
+  to_surah: number | null
+  to_ayah: number | null
+  from_page: number | null
+  to_page: number | null
+  quality_score: number
+  mistakes: number
+  notes: string | null
+  next_assignment: string | null
+  dirty: number
+}
+
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const sessionId = Number(id)
+  const router = useRouter()
   const db = useSQLiteContext()
-  const { activeTahfizId, syncNow, syncing } = useApp()
+  const { activeTahfizId, syncNow, syncing, user } = useApp()
   const { colors, commonStyles } = useTheme()
   const styles = createStyles(colors, commonStyles)
   const [session, setSession] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null>(null)
   const [students, setStudents] = useState<AttendanceRow[]>([])
+  const [progress, setProgress] = useState<LocalProgressRow[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
+  const [progressEnabled, setProgressEnabled] = useState(false)
   const [savingId, setSavingId] = useState<number | null>(null)
   const [progressStudent, setProgressStudent] = useState<AttendanceRow | null>(null)
+  const [notesStudent, setNotesStudent] = useState<AttendanceRow | null>(null)
+  const [bulkProgressOpen, setBulkProgressOpen] = useState(false)
+  const [adjacent, setAdjacent] = useState<{ previous: number | null; next: number | null }>({
+    previous: null,
+    next: null,
+  })
+  const admin = user?.role === 'admin' || user?.global_role === 'super_admin'
 
   const load = useCallback(async () => {
     if (!activeTahfizId || !sessionId) return
-    const [sessionRow, attendanceRows, tahfiz] = await Promise.all([
+    const [sessionRow, attendanceRows, progressRows, tahfiz, sessionRows] = await Promise.all([
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>('SELECT * FROM sessions WHERE id=? AND tahfiz_id=?', sessionId, activeTahfizId),
       sessionAttendance<AttendanceRow>(db, sessionId),
-      db.getFirstAsync<{ attendance_statuses: string }>('SELECT attendance_statuses FROM tahfiz WHERE id=?', activeTahfizId),
+      db.getAllAsync<LocalProgressRow>('SELECT * FROM quran_progress WHERE session_id=? ORDER BY student_id,category', sessionId),
+      db.getFirstAsync<{ attendance_statuses: string; progress_tracking_enabled: number }>(
+        'SELECT attendance_statuses,progress_tracking_enabled FROM tahfiz WHERE id=?',
+        activeTahfizId,
+      ),
+      db.getAllAsync<{ id: number }>(
+        'SELECT id FROM sessions WHERE tahfiz_id=? ORDER BY date,id',
+        activeTahfizId,
+      ),
     ])
     setSession(sessionRow)
     setStudents(attendanceRows)
+    setProgress(progressRows)
     setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق'])
+    setProgressEnabled(Boolean(tahfiz?.progress_tracking_enabled))
+    const currentIndex = sessionRows.findIndex((row) => row.id === sessionId)
+    setAdjacent({
+      previous: currentIndex > 0 ? sessionRows[currentIndex - 1].id : null,
+      next: currentIndex >= 0 && currentIndex < sessionRows.length - 1 ? sessionRows[currentIndex + 1].id : null,
+    })
   }, [db, activeTahfizId, sessionId])
   useFocusEffect(useCallback(() => { void load() }, [load]))
 
@@ -82,7 +125,7 @@ export default function SessionScreen() {
   }
 
   const confirm = async () => {
-    if (!activeTahfizId || !session) return
+    if (!activeTahfizId || !session || !admin) return
     Alert.alert(
       'تأكيد الحلقة',
       'ستتم مزامنة كل التعديلات والتحقق منها قبل إغلاق الحلقة.',
@@ -124,20 +167,51 @@ export default function SessionScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={commonStyles.content}
         ListHeaderComponent={
-          <View style={styles.summary}>
+          <View style={{ gap: 10, marginBottom: 10 }}>
+          <View style={[styles.summary, { marginBottom: 0 }]}>
+            <TouchableOpacity
+              disabled={!adjacent.previous}
+              style={[styles.navButton, !adjacent.previous && styles.navDisabled]}
+              onPress={() => adjacent.previous && router.replace({
+                pathname: '/session/[id]',
+                params: { id: String(adjacent.previous) },
+              })}
+            >
+              <Text style={styles.navButtonText}>‹</Text>
+            </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={styles.date}>{new Date(`${session.date}T12:00:00`).toLocaleDateString('ar-EG', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
               })}</Text>
               <Text style={commonStyles.subtitle}>{present} حاضر من {students.length}</Text>
             </View>
+            <TouchableOpacity
+              disabled={!adjacent.next}
+              style={[styles.navButton, !adjacent.next && styles.navDisabled]}
+              onPress={() => adjacent.next && router.replace({
+                pathname: '/session/[id]',
+                params: { id: String(adjacent.next) },
+              })}
+            >
+              <Text style={styles.navButtonText}>›</Text>
+            </TouchableOpacity>
             <Text style={[styles.state, { color: session.is_confirmed ? colors.muted : colors.success }]}>
               {session.is_confirmed ? 'مؤكدة' : 'محفوظة محلياً'}
             </Text>
           </View>
+          {progressEnabled && present > 0 && !session.is_confirmed ? (
+            <TouchableOpacity style={styles.bulkProgressButton} onPress={() => setBulkProgressOpen(true)}>
+              <Text style={styles.bulkProgressButtonText}>تطبيق متابعة قرآن موحدة على الحاضرين ({present})</Text>
+            </TouchableOpacity>
+          ) : null}
+          </View>
         }
         renderItem={({ item }) => (
           <View style={styles.student}>
+            {(() => {
+              const studentProgress = progress.filter((entry) => entry.student_id === item.id)
+              return (
+                <>
             <View style={styles.studentHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.studentName}>{item.name}</Text>
@@ -157,16 +231,40 @@ export default function SessionScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            {item.status === 'حاضر' && !session.is_confirmed ? (
+            <TouchableOpacity
+              disabled={Boolean(session.is_confirmed)}
+              style={styles.notesButton}
+              onPress={() => setNotesStudent(item)}
+            >
+              <Text style={styles.notesButtonText}>
+                {item.notes ? `ملاحظة الحضور: ${item.notes}` : 'إضافة ملاحظة للحضور'}
+              </Text>
+            </TouchableOpacity>
+            {studentProgress.length ? (
+              <View style={styles.progressSummary}>
+                {studentProgress.map((entry) => (
+                  <Text key={entry.id} style={styles.progressSummaryText}>
+                    {progressCategoryLabel(entry.category)} · {progressRangeLabel(entry)}
+                    {entry.dirty ? ' · بانتظار المزامنة' : ''}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            {progressEnabled && item.status === 'حاضر' && !session.is_confirmed ? (
               <TouchableOpacity style={styles.progressButton} onPress={() => setProgressStudent(item)}>
-                <Text style={styles.progressButtonText}>تسجيل تقدم القرآن</Text>
+                <Text style={styles.progressButtonText}>
+                  {studentProgress.length ? `تعديل تقدم القرآن (${studentProgress.length})` : 'تسجيل تقدم القرآن'}
+                </Text>
               </TouchableOpacity>
             ) : null}
+                </>
+              )
+            })()}
           </View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListFooterComponent={
-          !session.is_confirmed ? (
+          !session.is_confirmed && admin ? (
             <TouchableOpacity disabled={syncing} style={[commonStyles.button, { marginTop: 10 }]} onPress={() => void confirm()}>
               {syncing ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>مزامنة وتأكيد الحلقة</Text>}
             </TouchableOpacity>
@@ -175,9 +273,27 @@ export default function SessionScreen() {
       />
       <ProgressModal
         student={progressStudent}
+        entries={progress.filter((entry) => entry.student_id === progressStudent?.id)}
         sessionId={sessionId}
         tahfizId={activeTahfizId}
         onClose={() => setProgressStudent(null)}
+        onSaved={load}
+      />
+      <AttendanceNotesModal
+        student={notesStudent}
+        sessionId={sessionId}
+        tahfizId={activeTahfizId}
+        onClose={() => setNotesStudent(null)}
+        onSaved={load}
+      />
+      <BulkProgressModal
+        visible={bulkProgressOpen}
+        students={students.filter((item) => item.status === 'حاضر')}
+        entries={progress}
+        sessionId={sessionId}
+        tahfizId={activeTahfizId}
+        onClose={() => setBulkProgressOpen(false)}
+        onSaved={load}
       />
     </View>
   )
@@ -185,14 +301,18 @@ export default function SessionScreen() {
 
 function ProgressModal({
   student,
+  entries,
   sessionId,
   tahfizId,
   onClose,
+  onSaved,
 }: {
   student: AttendanceRow | null
+  entries: LocalProgressRow[]
   sessionId: number
   tahfizId: number | null
   onClose(): void
+  onSaved(): Promise<void>
 }) {
   const db = useSQLiteContext()
   const { colors, commonStyles } = useTheme()
@@ -208,7 +328,29 @@ function ProgressModal({
   const [quality, setQuality] = useState('4')
   const [mistakes, setMistakes] = useState('0')
   const [notes, setNotes] = useState('')
+  const [nextAssignment, setNextAssignment] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!student) return
+    setCategory(entries[0]?.category ?? 'new_memorization')
+  }, [student?.id])
+
+  useEffect(() => {
+    if (!student) return
+    const existing = entries.find((entry) => entry.category === category)
+    setRangeType(existing?.range_type ?? 'page')
+    setFromPage(existing?.from_page === null || existing?.from_page === undefined ? '' : String(existing.from_page))
+    setToPage(existing?.to_page === null || existing?.to_page === undefined ? '' : String(existing.to_page))
+    setFromSurah(existing?.from_surah === null || existing?.from_surah === undefined ? '' : String(existing.from_surah))
+    setFromAyah(existing?.from_ayah === null || existing?.from_ayah === undefined ? '' : String(existing.from_ayah))
+    setToSurah(existing?.to_surah === null || existing?.to_surah === undefined ? '' : String(existing.to_surah))
+    setToAyah(existing?.to_ayah === null || existing?.to_ayah === undefined ? '' : String(existing.to_ayah))
+    setQuality(String(existing?.quality_score ?? 4))
+    setMistakes(String(existing?.mistakes ?? 0))
+    setNotes(existing?.notes ?? '')
+    setNextAssignment(existing?.next_assignment ?? '')
+  }, [student?.id, category, entries])
 
   const save = async () => {
     if (!student || !tahfizId) return
@@ -246,16 +388,10 @@ function ProgressModal({
         quality_score: Math.max(1, Math.min(5, Number(quality))),
         mistakes: Math.max(0, Number(mistakes)),
         notes: notes.trim() || null,
-        next_assignment: null,
+        next_assignment: nextAssignment.trim() || null,
       })
+      await onSaved()
       onClose()
-      setFromPage('')
-      setToPage('')
-      setFromSurah('')
-      setFromAyah('')
-      setToSurah('')
-      setToAyah('')
-      setNotes('')
     } catch (error) {
       Alert.alert('تعذر الحفظ', error instanceof Error ? error.message : 'حاول مرة أخرى')
     } finally {
@@ -310,6 +446,7 @@ function ProgressModal({
           <TextInput value={mistakes} onChangeText={setMistakes} keyboardType="number-pad" placeholder="الأخطاء" style={[commonStyles.input, styles.half]} />
         </View>
         <TextInput value={notes} onChangeText={setNotes} multiline placeholder="ملاحظات اختيارية" style={[commonStyles.input, { minHeight: 100, textAlignVertical: 'top', paddingTop: 14 }]} />
+        <TextInput value={nextAssignment} onChangeText={setNextAssignment} multiline placeholder="التكليف القادم (اختياري)" style={[commonStyles.input, { minHeight: 82, textAlignVertical: 'top', paddingTop: 14 }]} />
         <TouchableOpacity style={commonStyles.button} disabled={saving} onPress={() => void save()}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ على الجهاز</Text>}
         </TouchableOpacity>
@@ -319,9 +456,232 @@ function ProgressModal({
   )
 }
 
+function AttendanceNotesModal({
+  student,
+  sessionId,
+  tahfizId,
+  onClose,
+  onSaved,
+}: {
+  student: AttendanceRow | null
+  sessionId: number
+  tahfizId: number | null
+  onClose(): void
+  onSaved(): Promise<void>
+}) {
+  const db = useSQLiteContext()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setNotes(student?.notes ?? '')
+  }, [student?.id, student?.notes])
+
+  const save = async () => {
+    if (!student || !tahfizId) return
+    setSaving(true)
+    try {
+      await queueAttendance(
+        db,
+        await getDeviceId(),
+        tahfizId,
+        sessionId,
+        student.id,
+        student.status,
+        notes.trim() || null,
+        student.sheikh_id,
+      )
+      await onSaved()
+      onClose()
+    } catch (error) {
+      Alert.alert('تعذر حفظ الملاحظة', error instanceof Error ? error.message : 'حاول مرة أخرى')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal visible={Boolean(student)} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={[commonStyles.screen, commonStyles.content]}>
+        <Text style={commonStyles.title}>ملاحظة حضور {student?.name}</Text>
+        <Text style={commonStyles.subtitle}>تُحفظ الملاحظة على الجهاز وتُرسل في المزامنة القادمة.</Text>
+        <TextInput
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          autoFocus
+          placeholder="ملاحظة اختيارية"
+          style={[commonStyles.input, styles.notesInput]}
+          textAlignVertical="top"
+        />
+        <TouchableOpacity disabled={saving} style={commonStyles.button} onPress={() => void save()}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ على الجهاز</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancel} onPress={onClose}>
+          <Text style={{ color: colors.muted, fontWeight: '700' }}>إلغاء</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  )
+}
+
+function BulkProgressModal({
+  visible,
+  students,
+  entries,
+  sessionId,
+  tahfizId,
+  onClose,
+  onSaved,
+}: {
+  visible: boolean
+  students: AttendanceRow[]
+  entries: LocalProgressRow[]
+  sessionId: number
+  tahfizId: number | null
+  onClose(): void
+  onSaved(): Promise<void>
+}) {
+  const db = useSQLiteContext()
+  const { colors, commonStyles } = useTheme()
+  const styles = createStyles(colors, commonStyles)
+  const [category, setCategory] = useState<LocalProgressRow['category']>('new_memorization')
+  const [rangeType, setRangeType] = useState<LocalProgressRow['range_type']>('page')
+  const [fromPage, setFromPage] = useState('')
+  const [toPage, setToPage] = useState('')
+  const [fromSurah, setFromSurah] = useState('')
+  const [fromAyah, setFromAyah] = useState('')
+  const [toSurah, setToSurah] = useState('')
+  const [toAyah, setToAyah] = useState('')
+  const [quality, setQuality] = useState('3')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    if (!tahfizId || students.length === 0) return
+    const pageStart = Number(fromPage)
+    const pageEnd = Number(toPage)
+    const surahStart = Number(fromSurah)
+    const ayahStart = Number(fromAyah)
+    const surahEnd = Number(toSurah)
+    const ayahEnd = Number(toAyah)
+    if (rangeType === 'page' && (pageStart < 1 || pageEnd < pageStart || pageEnd > 604)) {
+      Alert.alert('تحقق من الصفحات', 'أدخل نطاقاً صحيحاً بين ١ و٦٠٤.')
+      return
+    }
+    if (rangeType === 'surah_ayah' && (
+      surahStart < 1 || surahStart > 114 || surahEnd < surahStart || surahEnd > 114
+      || ayahStart < 1 || ayahEnd < 1
+    )) {
+      Alert.alert('تحقق من السورة والآية', 'أدخل بداية ونهاية صحيحتين للنطاق.')
+      return
+    }
+    setSaving(true)
+    try {
+      const deviceId = await getDeviceId()
+      for (const student of students) {
+        const existing = entries.find((entry) => entry.student_id === student.id && entry.category === category)
+        await queueProgress(db, deviceId, tahfizId, {
+          session_id: sessionId,
+          student_id: student.id,
+          sheikh_id: student.sheikh_id,
+          category,
+          range_type: rangeType,
+          from_page: rangeType === 'page' ? pageStart : null,
+          to_page: rangeType === 'page' ? pageEnd : null,
+          from_surah: rangeType === 'surah_ayah' ? surahStart : null,
+          from_ayah: rangeType === 'surah_ayah' ? ayahStart : null,
+          to_surah: rangeType === 'surah_ayah' ? surahEnd : null,
+          to_ayah: rangeType === 'surah_ayah' ? ayahEnd : null,
+          quality_score: Math.max(1, Math.min(5, Number(quality))),
+          mistakes: existing?.mistakes ?? 0,
+          notes: existing?.notes ?? null,
+          next_assignment: existing?.next_assignment ?? null,
+        })
+      }
+      await onSaved()
+      onClose()
+      Alert.alert('تم الحفظ', `حُفظت المتابعة محلياً لـ ${students.length} طلاب وستُرسل في المزامنة القادمة.`)
+    } catch (error) {
+      Alert.alert('تعذر تطبيق المتابعة', error instanceof Error ? error.message : 'حاول مرة أخرى')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content} keyboardShouldPersistTaps="handled">
+        <Text style={commonStyles.title}>متابعة موحدة للحاضرين</Text>
+        <Text style={commonStyles.subtitle}>سيُطبّق النطاق على {students.length} طلاب، ويمكن تعديل الاستثناءات بعد ذلك.</Text>
+        <View style={styles.statuses}>
+          {([
+            ['new_memorization', 'حفظ جديد'],
+            ['recent_revision', 'مراجعة حديثة'],
+            ['old_revision', 'مراجعة قديمة'],
+            ['test', 'اختبار'],
+          ] as const).map(([value, label]) => (
+            <TouchableOpacity key={value} onPress={() => setCategory(value)} style={[styles.status, category === value && styles.statusSelected]}>
+              <Text style={[styles.statusText, category === value && styles.statusTextSelected]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.formRow}>
+          <TouchableOpacity onPress={() => setRangeType('page')} style={[styles.rangeChoice, rangeType === 'page' && styles.statusSelected]}>
+            <Text style={[styles.statusText, rangeType === 'page' && styles.statusTextSelected]}>بالصفحات</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setRangeType('surah_ayah')} style={[styles.rangeChoice, rangeType === 'surah_ayah' && styles.statusSelected]}>
+            <Text style={[styles.statusText, rangeType === 'surah_ayah' && styles.statusTextSelected]}>بالسورة والآية</Text>
+          </TouchableOpacity>
+        </View>
+        {rangeType === 'page' ? (
+          <View style={styles.formRow}>
+            <TextInput value={fromPage} onChangeText={setFromPage} keyboardType="number-pad" placeholder="من صفحة" style={[commonStyles.input, styles.half]} />
+            <TextInput value={toPage} onChangeText={setToPage} keyboardType="number-pad" placeholder="إلى صفحة" style={[commonStyles.input, styles.half]} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.formRow}>
+              <TextInput value={fromSurah} onChangeText={setFromSurah} keyboardType="number-pad" placeholder="من سورة" style={[commonStyles.input, styles.half]} />
+              <TextInput value={fromAyah} onChangeText={setFromAyah} keyboardType="number-pad" placeholder="من آية" style={[commonStyles.input, styles.half]} />
+            </View>
+            <View style={styles.formRow}>
+              <TextInput value={toSurah} onChangeText={setToSurah} keyboardType="number-pad" placeholder="إلى سورة" style={[commonStyles.input, styles.half]} />
+              <TextInput value={toAyah} onChangeText={setToAyah} keyboardType="number-pad" placeholder="إلى آية" style={[commonStyles.input, styles.half]} />
+            </View>
+          </>
+        )}
+        <TextInput value={quality} onChangeText={setQuality} keyboardType="number-pad" placeholder="التقييم ١-٥" style={commonStyles.input} />
+        <TouchableOpacity disabled={saving} style={commonStyles.button} onPress={() => void save()}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ للجميع على الجهاز</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancel} onPress={onClose}><Text style={commonStyles.subtitle}>إلغاء</Text></TouchableOpacity>
+      </ScrollView>
+    </Modal>
+  )
+}
+
+function progressCategoryLabel(category: LocalProgressRow['category']) {
+  return {
+    new_memorization: 'حفظ جديد',
+    recent_revision: 'مراجعة حديثة',
+    old_revision: 'مراجعة قديمة',
+    test: 'اختبار',
+  }[category]
+}
+
+function progressRangeLabel(entry: LocalProgressRow) {
+  if (entry.range_type === 'page') return `صفحة ${entry.from_page ?? '—'}–${entry.to_page ?? '—'}`
+  return `س ${entry.from_surah ?? '—'} آ ${entry.from_ayah ?? '—'} ← س ${entry.to_surah ?? '—'} آ ${entry.to_ayah ?? '—'}`
+}
+
 const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   summary: { ...commonStyles.card, flexDirection: 'row-reverse', alignItems: 'center', gap: 12, marginBottom: 10 },
+  navButton: { width: 36, height: 42, borderRadius: 12, backgroundColor: colors.primarySurface, alignItems: 'center', justifyContent: 'center' },
+  navDisabled: { opacity: 0.3 },
+  navButtonText: { color: colors.primaryDark, fontSize: 28, fontWeight: '900', lineHeight: 30 },
   date: { color: colors.text, fontSize: 17, fontWeight: '900', textAlign: 'right' },
   state: { fontWeight: '800', fontSize: 12 },
   student: { ...commonStyles.card, gap: 11 },
@@ -333,10 +693,17 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   statusSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   statusText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   statusTextSelected: { color: '#fff' },
+  notesButton: { backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 10 },
+  notesButtonText: { color: colors.text, textAlign: 'right', fontWeight: '700', fontSize: 12 },
+  progressSummary: { backgroundColor: colors.background, borderRadius: 12, padding: 10, gap: 5 },
+  progressSummaryText: { color: colors.muted, textAlign: 'right', fontSize: 11, fontWeight: '700' },
   progressButton: { backgroundColor: colors.primarySurface, borderRadius: 12, padding: 11, alignItems: 'center' },
   progressButtonText: { color: colors.primaryDark, fontWeight: '800' },
+  bulkProgressButton: { minHeight: 48, backgroundColor: colors.primarySurface, borderWidth: 1, borderColor: colors.primary, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 10 },
+  bulkProgressButtonText: { color: colors.primaryDark, fontWeight: '900', textAlign: 'center' },
   formRow: { flexDirection: 'row-reverse', gap: 10 },
   half: { flex: 1 },
   rangeChoice: { flex: 1, minHeight: 45, borderWidth: 1, borderColor: colors.border, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   cancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  notesInput: { minHeight: 140, paddingTop: 14 },
 })

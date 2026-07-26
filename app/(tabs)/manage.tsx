@@ -12,12 +12,12 @@ export default function ManageScreen() {
   const styles = createStyles(colors, commonStyles)
   const admin = user?.role === 'admin' || user?.role === 'super_admin'
   const items = [
-    ['students', 'الطلاب', '/students', true],
-    ['sheikhs', 'الشيوخ', '/sheikhs', true],
-    ['warnings', 'الإنذارات', '/warnings', true],
+    ['students', 'الطلاب', '/students', admin],
+    ['sheikhs', 'الشيوخ', '/sheikhs', admin],
+    ['warnings', 'الإنذارات', '/warnings', admin],
     ['users', 'المستخدمون والصلاحيات', '/users', admin],
     ['invitations', 'الدعوات', '/invitations/', admin],
-    ['filters', 'التصفيات المحفوظة', '/saved-filters/', true],
+    ['filters', 'التصفيات المحفوظة', '/saved-filters/', admin],
   ] as const
   return (
     <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
@@ -27,7 +27,11 @@ export default function ManageScreen() {
         <TouchableOpacity
           key={screen}
           style={styles.item}
-          onPress={() => router.push({ pathname: '/online/[screen]', params: { screen, endpoint, label } })}
+          onPress={() => {
+            if (screen === 'invitations') router.push('/invitations')
+            else if (screen === 'warnings') router.push('/warnings')
+            else router.push({ pathname: '/online/[screen]', params: { screen, endpoint, label } })
+          }}
         >
           <Text style={styles.label}>{label}</Text>
           <Text style={styles.online}>متصل</Text>

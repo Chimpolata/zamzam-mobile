@@ -8,6 +8,7 @@ import { pendingCount, purgeLocalData } from '../db/database'
 import { api } from '../lib/api'
 import {
   clearSession,
+  clearActiveTahfiz,
   getActiveTahfiz,
   getRefreshToken,
   getSavedUser,
@@ -26,8 +27,9 @@ interface AppContextValue {
   locked: boolean
   syncing: boolean
   lastSync: SyncSummary | null
-  login(username: string, password: string): Promise<void>
+  login(username: string, password: string): Promise<User>
   logout(discardPending?: boolean): Promise<void>
+  refreshAccount(preferredTahfizId?: number): Promise<User>
   switchTahfiz(id: number): Promise<void>
   syncNow(allMemberships?: boolean): Promise<SyncSummary | null>
   unlock(): Promise<boolean>
@@ -46,8 +48,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     Promise.all([getSavedUser(), getActiveTahfiz()]).then(([savedUser, tahfizId]) => {
+      const activeMemberships = savedUser?.memberships.filter((item) => item.tahfiz_status === 'active') ?? []
+      const restoredTahfizId = savedUser?.global_role === 'super_admin'
+        ? tahfizId
+        : activeMemberships.some((item) => item.tahfiz_id === tahfizId)
+          ? tahfizId
+          : activeMemberships[0]?.tahfiz_id ?? null
       setUser(savedUser)
-      setActiveTahfizId(tahfizId ?? savedUser?.tahfiz_id ?? null)
+      setActiveTahfizId(restoredTahfizId)
       setLocked(Boolean(savedUser))
       setReady(true)
     })
@@ -114,6 +122,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [db, user, syncing, activeTahfizId])
 
+  const storeCurrentUser = useCallback(async (currentUser: User, preferredTahfizId?: number) => {
+    const activeMemberships = currentUser.memberships.filter((item) => item.tahfiz_status === 'active')
+    const preferredMembership = activeMemberships.find((item) => item.tahfiz_id === preferredTahfizId)
+    const currentTahfizIsActive = currentUser.tahfiz?.status === 'active'
+    const firstTahfiz = preferredMembership?.tahfiz_id
+      ?? (currentTahfizIsActive ? currentUser.tahfiz_id : null)
+      ?? activeMemberships[0]?.tahfiz_id
+      ?? null
+    await saveUser(currentUser)
+    if (firstTahfiz) await saveActiveTahfiz(firstTahfiz)
+    else await clearActiveTahfiz()
+    setUser(currentUser)
+    setActiveTahfizId(firstTahfiz)
+    setLocked(false)
+    if (firstTahfiz) {
+      const ids = activeMemberships.map((item) => item.tahfiz_id)
+      try { await syncTahfiz(db, firstTahfiz) } catch {}
+      void Promise.allSettled(ids.filter((id) => id !== firstTahfiz).map((id) => syncTahfiz(db, id)))
+    }
+    return currentUser
+  }, [db])
+
   const login = useCallback(async (username: string, password: string) => {
     const tokens = await api.login(username.trim(), password)
     if (!tokens.refresh_token) throw new Error('لم يصدر الخادم جلسة آمنة للجهاز')
@@ -125,32 +155,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await clearSession()
       throw error
     }
-    const firstTahfiz = currentUser.tahfiz_id
-      ?? currentUser.memberships.find((item) => item.tahfiz_status === 'active')?.tahfiz_id
-      ?? null
-    await saveUser(currentUser)
-    if (firstTahfiz) await saveActiveTahfiz(firstTahfiz)
-    setUser(currentUser)
-    setActiveTahfizId(firstTahfiz)
-    setLocked(false)
-    // The screen becomes usable before the all-membership preload completes.
-    if (firstTahfiz) {
-      const ids = currentUser.memberships
-        .filter((item) => item.tahfiz_status === 'active')
-        .map((item) => item.tahfiz_id)
-      try { await syncTahfiz(db, firstTahfiz) } catch {}
-      void Promise.allSettled(ids.filter((id) => id !== firstTahfiz).map((id) => syncTahfiz(db, id)))
-    }
-  }, [db])
+    return storeCurrentUser(currentUser)
+  }, [storeCurrentUser])
+
+  const refreshAccount = useCallback(async (preferredTahfizId?: number) => {
+    const currentUser = await api.me(preferredTahfizId)
+    return storeCurrentUser(currentUser, preferredTahfizId)
+  }, [storeCurrentUser])
 
   const switchTahfiz = useCallback(async (id: number) => {
     const platformSupport = user?.global_role === 'super_admin'
     if (!platformSupport && !user?.memberships.some((item) => item.tahfiz_id === id && item.tahfiz_status === 'active')) {
       throw new Error('لا توجد عضوية نشطة في هذا التحفيظ')
     }
+    if (!platformSupport) {
+      await api.setDefaultTahfiz(id)
+      await refreshAccount(id)
+      return
+    }
     await saveActiveTahfiz(id)
     setActiveTahfizId(id)
-  }, [user])
+    Network.getNetworkStateAsync().then((network) => {
+      if (network.isConnected) void syncTahfiz(db, id).catch(() => undefined)
+    })
+  }, [db, user, refreshAccount])
 
   const logout = useCallback(async (discardPending = false) => {
     const pending = await pendingCount(db)
@@ -168,10 +196,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     ready, user, activeTahfizId, locked, syncing, lastSync,
-    login, logout, switchTahfiz, syncNow, unlock,
+    login, logout, refreshAccount, switchTahfiz, syncNow, unlock,
   }), [
     ready, user, activeTahfizId, locked, syncing, lastSync,
-    login, logout, switchTahfiz, syncNow, unlock,
+    login, logout, refreshAccount, switchTahfiz, syncNow, unlock,
   ])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

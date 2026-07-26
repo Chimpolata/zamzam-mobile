@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { useApp } from '../../src/context/AppContext'
-import { api } from '../../src/lib/api'
+import { shareDatabaseExport } from '../../src/lib/database-export'
 import { type ThemeMode, useTheme } from '../../src/theme'
 
 export default function MoreScreen() {
@@ -11,14 +11,8 @@ export default function MoreScreen() {
   const { user, activeTahfizId, switchTahfiz, logout } = useApp()
   const { colors, commonStyles, mode, setMode } = useTheme()
   const styles = createStyles(colors, commonStyles)
-  const [supportTahfiz, setSupportTahfiz] = useState<Array<{ id: number; name: string; status: string }>>([])
-
-  useEffect(() => {
-    if (user?.global_role === 'super_admin') {
-      api.get('/platform/tahfiz').then(setSupportTahfiz).catch(() => setSupportTahfiz([]))
-    }
-  }, [user?.global_role])
-
+  const [exporting, setExporting] = React.useState(false)
+  const admin = user?.role === 'admin' || user?.global_role === 'super_admin'
   const signOut = async () => {
     try {
       await logout(false)
@@ -41,6 +35,21 @@ export default function MoreScreen() {
       )
     }
   }
+  const exportTahfiz = async () => {
+    if (!activeTahfizId) return
+    setExporting(true)
+    try {
+      await shareDatabaseExport({
+        path: '/tahfiz/export-db',
+        fileName: `zamzam-tahfiz-${activeTahfizId}.db`,
+        tahfizId: activeTahfizId,
+      })
+    } catch (reason) {
+      Alert.alert('تعذر التصدير', reason instanceof Error ? reason.message : 'حاول مرة أخرى')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
@@ -58,19 +67,6 @@ export default function MoreScreen() {
               <Text style={commonStyles.subtitle}>{membership.role === 'admin' ? 'مدير' : 'شيخ'}</Text>
             </View>
             {membership.tahfiz_id === activeTahfizId ? <Text style={styles.current}>الحالي ✓</Text> : null}
-          </TouchableOpacity>
-        ))}
-        {supportTahfiz.filter((item) => item.status === 'active').map((item) => (
-          <TouchableOpacity
-            key={`support-${item.id}`}
-            onPress={() => void switchTahfiz(item.id)}
-            style={[styles.membership, item.id === activeTahfizId && styles.membershipActive]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.membershipName}>{item.name}</Text>
-              <Text style={commonStyles.subtitle}>دخول دعم مسجل</Text>
-            </View>
-            {item.id === activeTahfizId ? <Text style={styles.current}>الحالي ✓</Text> : null}
           </TouchableOpacity>
         ))}
       </View>
@@ -94,16 +90,21 @@ export default function MoreScreen() {
           ))}
         </View>
       </View>
-      <Menu label="إعدادات التحفيظ" onPress={() => router.push({
-        pathname: '/online/[screen]', params: { screen: 'settings', endpoint: '/tahfiz/settings', label: 'إعدادات التحفيظ' },
-      })} />
+      {admin ? (
+        <Menu label="إعدادات التحفيظ" onPress={() => router.push({
+          pathname: '/online/[screen]', params: { screen: 'settings', endpoint: '/tahfiz/settings', label: 'إعدادات التحفيظ' },
+        })} />
+      ) : null}
+      {admin ? (
+        <Menu label={exporting ? 'جاري تجهيز النسخة...' : 'تصدير قاعدة بيانات التحفيظ'} onPress={() => {
+          if (!exporting) void exportTahfiz()
+        }} />
+      ) : null}
       <Menu label="تعارضات المزامنة" onPress={() => router.push('/conflicts')} />
       {user?.global_role === 'super_admin' ? (
         <>
           <Menu label="بلاغات المستخدمين" onPress={() => router.push('/feedback')} />
-          <Menu label="إدارة المنصة" onPress={() => router.push({
-            pathname: '/online/[screen]', params: { screen: 'platform', endpoint: '/platform/tahfiz', label: 'إدارة المنصة' },
-          })} />
+          <Menu label="إدارة المنصة" onPress={() => router.push('/platform')} />
         </>
       ) : (
         <Menu label="إرسال ملاحظة أو بلاغ" onPress={() => router.push('/feedback')} />

@@ -2,12 +2,15 @@ import { Tabs } from 'expo-router'
 import React from 'react'
 import { type ColorValue, Text } from 'react-native'
 
+import { useApp } from '../../src/context/AppContext'
 import { useTheme } from '../../src/theme'
 
 const icon = (symbol: string, color: ColorValue) => <Text style={{ color, fontSize: 19 }}>{symbol}</Text>
 
 export default function TabLayout() {
+  const { user } = useApp()
   const { colors } = useTheme()
+  const admin = user?.role === 'admin' || user?.global_role === 'super_admin'
   return (
     <Tabs screenOptions={{
       headerTitleAlign: 'center',
@@ -27,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: 'الرئيسية', tabBarIcon: ({ color }) => icon('⌂', color) }} />
       <Tabs.Screen name="sessions" options={{ title: 'الحلقات', tabBarIcon: ({ color }) => icon('◫', color) }} />
       <Tabs.Screen name="reports" options={{ title: 'التقارير', tabBarIcon: ({ color }) => icon('▥', color) }} />
-      <Tabs.Screen name="manage" options={{ title: 'الإدارة', tabBarIcon: ({ color }) => icon('♙', color) }} />
+      <Tabs.Screen name="manage" options={{ title: 'الإدارة', href: admin ? undefined : null, tabBarIcon: ({ color }) => icon('♙', color) }} />
       <Tabs.Screen name="more" options={{ title: 'المزيد', tabBarIcon: ({ color }) => icon('•••', color) }} />
     </Tabs>
   )

@@ -43,6 +43,10 @@ export async function saveActiveTahfiz(id: number) {
   await SecureStore.setItemAsync(ACTIVE_TAHFIZ, String(id))
 }
 
+export async function clearActiveTahfiz() {
+  await SecureStore.deleteItemAsync(ACTIVE_TAHFIZ)
+}
+
 export async function getActiveTahfiz() {
   const value = await SecureStore.getItemAsync(ACTIVE_TAHFIZ)
   return value ? Number(value) : null

@@ -37,6 +37,28 @@ export interface User {
   tahfiz_id: number | null
   default_tahfiz_id: number | null
   memberships: Membership[]
+  tahfiz?: {
+    id: number
+    name: string
+    status: 'pending' | 'active' | 'rejected' | 'suspended'
+    status_reason: string | null
+    week_start_day: number
+    month_start_day: number
+    attendance_statuses: string[]
+    progress_tracking_enabled: boolean
+  } | null
+}
+
+export interface TahfizInvitation {
+  id: number
+  tahfiz_id: number
+  tahfiz_name: string
+  role: 'admin' | 'sheikh'
+  sheikh_id: number | null
+  sheikh_name: string | null
+  status: 'active' | 'used' | 'revoked' | 'expired'
+  available: boolean
+  expires_at: string
 }
 
 export interface Session {

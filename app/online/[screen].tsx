@@ -1,8 +1,10 @@
-import { Stack, useLocalSearchParams } from 'expo-router'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
 import React, { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -16,9 +18,11 @@ import {
 
 import { useApp } from '../../src/context/AppContext'
 import { api } from '../../src/lib/api'
+import { mediaUrl } from '../../src/lib/media'
 import { useTheme } from '../../src/theme'
 
 export default function OnlineDataScreen() {
+  const router = useRouter()
   const params = useLocalSearchParams<{ screen?: string; endpoint?: string; label?: string }>()
   const { activeTahfizId } = useApp()
   const { colors, commonStyles } = useTheme()
@@ -27,6 +31,7 @@ export default function OnlineDataScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Record<string, any> | null | undefined>(undefined)
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
 
   const load = async () => {
     if (!params.endpoint) return
@@ -48,7 +53,31 @@ export default function OnlineDataScreen() {
       ? data.students
       : data ? [data] : []
   const canEdit = ['students', 'sheikhs', 'users', 'invitations', 'settings', 'filters'].includes(params.screen ?? '')
-  const createOnly = params.screen === 'invitations' || params.screen === 'filters'
+  const createOnly = params.screen === 'invitations'
+
+  const reorderStudent = async (student: Record<string, any>, direction: -1 | 1) => {
+    if (!activeTahfizId) return
+    const sheikhId = Number(student.sheikh_id ?? student.sheikh?.id)
+    if (!sheikhId) return
+    const peers = items
+      .filter((candidate: Record<string, any>) => Number(candidate.sheikh_id ?? candidate.sheikh?.id) === sheikhId)
+      .sort((a: Record<string, any>, b: Record<string, any>) =>
+        Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0) || String(a.name).localeCompare(String(b.name), 'ar'))
+    const index = peers.findIndex((candidate: Record<string, any>) => candidate.id === student.id)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= peers.length) return
+    const ids = peers.map((candidate: Record<string, any>) => candidate.id)
+    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    setReorderingId(student.id)
+    try {
+      await api.reorderStudents(activeTahfizId, sheikhId, ids)
+      await load()
+    } catch (reason) {
+      Alert.alert('تعذر تغيير الترتيب', reason instanceof Error ? reason.message : 'حاول مرة أخرى')
+    } finally {
+      setReorderingId(null)
+    }
+  }
 
   return (
     <>
@@ -75,7 +104,12 @@ export default function OnlineDataScreen() {
             key={String(item.id ?? item.student_id ?? index)}
             style={[commonStyles.card, { gap: 7 }]}
           >
-            <Text style={styles.itemTitle}>{displayTitle(item, index)}</Text>
+            <View style={styles.itemHeading}>
+              {params.screen === 'students' && mediaUrl(item.profile_pic) ? (
+                <Image source={{ uri: mediaUrl(item.profile_pic)! }} style={styles.avatar} />
+              ) : null}
+              <Text style={styles.itemTitle}>{displayTitle(item, index)}</Text>
+            </View>
             {Object.entries(item)
               .filter(([key, value]) => visibleField(key, value))
               .slice(0, 8)
@@ -86,6 +120,52 @@ export default function OnlineDataScreen() {
                 </View>
               ))}
             {canEdit && !createOnly && params.screen !== 'settings' ? <Text style={styles.editHint}>اضغط للتعديل أو الحذف</Text> : null}
+            {params.screen === 'students' ? (
+              <View style={{ gap: 8 }}>
+                <View style={styles.studentLinks}>
+                  <TouchableOpacity
+                    style={styles.progressLink}
+                    onPress={(event) => {
+                      event.stopPropagation()
+                      router.push({
+                        pathname: '/student/[id]/progress',
+                        params: { id: String(item.id), name: item.name },
+                      })
+                    }}
+                  >
+                    <Text style={styles.progressLinkText}>تقدم القرآن والأهداف</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.progressLink}
+                    onPress={(event) => {
+                      event.stopPropagation()
+                      router.push({
+                        pathname: '/student/[id]/exceptions',
+                        params: { id: String(item.id), name: item.name },
+                      })
+                    }}
+                  >
+                    <Text style={styles.progressLinkText}>أيام العذر</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.orderButtons}>
+                  <TouchableOpacity
+                    disabled={reorderingId !== null}
+                    style={styles.orderButton}
+                    onPress={(event) => { event.stopPropagation(); void reorderStudent(item, -1) }}
+                  >
+                    <Text style={styles.orderButtonText}>تحريك لأعلى ↑</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={reorderingId !== null}
+                    style={styles.orderButton}
+                    onPress={(event) => { event.stopPropagation(); void reorderStudent(item, 1) }}
+                  >
+                    <Text style={styles.orderButtonText}>تحريك لأسفل ↓</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -117,6 +197,15 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'registration_date', label: 'تاريخ التسجيل YYYY-MM-DD' },
     { key: 'sheikh_id', label: 'رقم الشيخ', keyboard: 'number-pad' },
     { key: 'status', label: 'الحالة: مقيد، مستبعد، منقطع، ضيف، غير مقيد' },
+    { key: 'parent_phone_1', label: 'هاتف ولي الأمر الأول', keyboard: 'phone-pad' },
+    { key: 'parent_type_1', label: 'صلة ولي الأمر الأول: أب، أم، أخ، أخت، جد، جدة، أرضي' },
+    { key: 'parent_name_1', label: 'اسم ولي الأمر الأول' },
+    { key: 'parent_phone_2', label: 'هاتف ولي الأمر الثاني', keyboard: 'phone-pad' },
+    { key: 'parent_type_2', label: 'صلة ولي الأمر الثاني' },
+    { key: 'parent_name_2', label: 'اسم ولي الأمر الثاني' },
+    { key: 'parent_phone_3', label: 'هاتف ولي الأمر الثالث', keyboard: 'phone-pad' },
+    { key: 'parent_type_3', label: 'صلة ولي الأمر الثالث' },
+    { key: 'parent_name_3', label: 'اسم ولي الأمر الثالث' },
   ],
   sheikhs: [
     { key: 'name', label: 'اسم الشيخ' },
@@ -147,6 +236,9 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'month_start_day', label: 'بداية الشهر ١-٢٨', keyboard: 'number-pad' },
     { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة' },
     { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true },
+    { key: 'whatsend_api_url', label: 'رابط WhatsEnd API' },
+    { key: 'whatsend_groups_url', label: 'رابط مجموعات WhatsEnd' },
+    { key: 'whatsend_api_key', label: 'مفتاح WhatsEnd (اتركه فارغاً للاحتفاظ بالحالي)', secure: true },
   ],
 }
 
@@ -173,10 +265,16 @@ function RecordEditor({
     if (item === undefined) return
     const next: Record<string, any> = {}
     for (const field of fields) {
-      const raw = item?.[field.key]
+      const parentMatch = /^parent_(phone|type|name)_(\d)$/.exec(field.key)
+      const parent = parentMatch ? item?.parent_phones?.[Number(parentMatch[2]) - 1] : null
+      const raw = parentMatch
+        ? parent?.[parentMatch[1] === 'phone' ? 'phone_number' : parentMatch[1] === 'type' ? 'parent_type' : 'name']
+        : field.key === 'sheikh_id'
+          ? item?.sheikh_id ?? item?.sheikh?.id
+          : item?.[field.key]
       next[field.key] = field.key === 'attendance_statuses' && Array.isArray(raw)
         ? raw.join('، ')
-        : raw ?? defaultValue(screen, field.key)
+        : raw ?? (parentMatch?.[1] === 'type' ? 'أب' : defaultValue(screen, field.key))
     }
     setValues(next)
   }, [item, screen])
@@ -186,7 +284,8 @@ function RecordEditor({
     const body: Record<string, any> = {}
     for (const field of fields) {
       const raw = values[field.key]
-      if (field.key === 'password' && item && !raw) continue
+      if (/^parent_(phone|type|name)_\d$/.test(field.key)) continue
+      if ((field.key === 'password' || field.key === 'whatsend_api_key') && item && !raw) continue
       if (field.key === 'attendance_statuses') {
         body[field.key] = String(raw).split(/[،,]/).map((value) => value.trim()).filter(Boolean)
       } else if (field.boolean) {
@@ -197,11 +296,31 @@ function RecordEditor({
         body[field.key] = raw === '' ? null : raw
       }
     }
-    if (screen === 'students' && !item) body.parent_phones = []
+    if (screen === 'students') {
+      const editedParents = [1, 2, 3].map((index) => ({
+        phone_number: String(values[`parent_phone_${index}`] ?? '').trim(),
+        parent_type: String(values[`parent_type_${index}`] ?? 'أب').trim() || 'أب',
+        name: String(values[`parent_name_${index}`] ?? '').trim() || null,
+      })).filter((parent) => parent.phone_number)
+      const extraParents = (item?.parent_phones ?? []).slice(3).map((parent: Record<string, any>) => ({
+        phone_number: parent.phone_number,
+        parent_type: parent.parent_type,
+        name: parent.name ?? null,
+      }))
+      body.parent_phones = [...editedParents, ...extraParents]
+    }
+    const originalSheikhId = Number(item?.sheikh_id ?? item?.sheikh?.id)
+    const nextSheikhId = Number(body.sheikh_id)
+    const shouldMoveStudent = screen === 'students' && Boolean(item?.id) && Boolean(nextSheikhId)
+      && nextSheikhId !== originalSheikhId
+    if (screen === 'students' && item?.id) delete body.sheikh_id
     setBusy(true)
     try {
       const endpoint = editorEndpoint(screen, item ?? null)
-      await api.mutate(endpoint, item && !['invitations', 'filters'].includes(screen) ? 'PUT' : 'POST', tahfizId, body)
+      await api.mutate(endpoint, item && screen !== 'invitations' ? 'PUT' : 'POST', tahfizId, body)
+      if (shouldMoveStudent && tahfizId) {
+        await api.moveStudentSheikh(tahfizId, item!.id, nextSheikhId)
+      }
       await onSaved()
     } catch (reason) {
       Alert.alert('تعذر الحفظ', reason instanceof Error ? reason.message : 'تحقق من البيانات')
@@ -232,10 +351,49 @@ function RecordEditor({
     ])
   }
 
+  const pickStudentPhoto = async () => {
+    if (!item?.id || !tahfizId) return
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('إذن الصور مطلوب', 'اسمح لزمزم بالوصول إلى الصور لاختيار صورة الطالب.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+    if (result.canceled || !result.assets[0]) return
+    setBusy(true)
+    try {
+      await api.uploadStudentPic(tahfizId, item.id, result.assets[0])
+      await onSaved()
+    } catch (reason) {
+      Alert.alert('تعذر رفع الصورة', reason instanceof Error ? reason.message : 'حاول مرة أخرى')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <Modal visible={item !== undefined} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content} keyboardShouldPersistTaps="handled">
         <Text style={commonStyles.title}>{item ? 'تعديل السجل' : 'إضافة سجل'}</Text>
+        {screen === 'students' && item?.id ? (
+          <View style={styles.photoEditor}>
+            {mediaUrl(item.profile_pic) ? (
+              <Image source={{ uri: mediaUrl(item.profile_pic)! }} style={styles.photoPreview} />
+            ) : (
+              <View style={[styles.photoPreview, styles.photoPlaceholder]}>
+                <Text style={styles.photoPlaceholderText}>لا توجد صورة</Text>
+              </View>
+            )}
+            <TouchableOpacity disabled={busy} style={styles.photoButton} onPress={() => void pickStudentPhoto()}>
+              <Text style={styles.photoButtonText}>اختيار أو تغيير صورة الطالب</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {fields.map((field) => field.boolean ? (
           <View key={field.key} style={styles.switchRow}>
             <Switch value={Boolean(values[field.key])} onValueChange={(value) => setValues((current) => ({ ...current, [field.key]: value }))} />
@@ -256,7 +414,7 @@ function RecordEditor({
         <TouchableOpacity disabled={busy} style={commonStyles.button} onPress={() => void save()}>
           {busy ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ</Text>}
         </TouchableOpacity>
-        {item?.id && !['settings', 'invitations', 'filters'].includes(screen) ? (
+        {item?.id && !['settings', 'invitations'].includes(screen) ? (
           <TouchableOpacity disabled={busy} style={styles.deleteButton} onPress={remove}>
             <Text style={styles.deleteText}>حذف السجل</Text>
           </TouchableOpacity>
@@ -287,11 +445,18 @@ function editorEndpoint(screen: string, item: Record<string, any> | null) {
     filters: '/saved-filters/',
   }
   const root = roots[screen]
-  return item?.id && !['invitations', 'filters'].includes(screen) ? `${root}/${item.id}` : root
+  return item?.id && screen !== 'invitations'
+    ? `${root.replace(/\/$/, '')}/${item.id}`
+    : root
 }
 
 function deleteEndpoint(screen: string, id: number) {
-  const roots: Record<string, string> = { students: '/students', sheikhs: '/sheikhs', users: '/users' }
+  const roots: Record<string, string> = {
+    students: '/students',
+    sheikhs: '/sheikhs',
+    users: '/users',
+    filters: '/saved-filters',
+  }
   return `${roots[screen]}/${id}`
 }
 
@@ -321,13 +486,27 @@ function fieldLabel(key: string) {
 
 const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyles: ReturnType<typeof useTheme>['commonStyles']) => StyleSheet.create({
   error: { color: colors.warning, textAlign: 'right', fontWeight: '800' },
-  itemTitle: { color: colors.text, textAlign: 'right', fontSize: 17, fontWeight: '900' },
+  itemHeading: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  itemTitle: { flex: 1, color: colors.text, textAlign: 'right', fontSize: 17, fontWeight: '900' },
+  avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.primarySurface },
   field: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 12 },
   fieldLabel: { color: colors.muted, fontSize: 12, textAlign: 'right' },
   fieldValue: { color: colors.text, fontSize: 12, fontWeight: '700', flexShrink: 1, textAlign: 'left' },
   editHint: { color: colors.primary, fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 4 },
+  studentLinks: { flexDirection: 'row-reverse', gap: 8 },
+  progressLink: { flex: 1, backgroundColor: colors.primarySurface, borderRadius: 10, padding: 10, marginTop: 4 },
+  progressLinkText: { color: colors.primaryDark, fontWeight: '900', fontSize: 12, textAlign: 'center' },
+  orderButtons: { flexDirection: 'row-reverse', gap: 8 },
+  orderButton: { flex: 1, minHeight: 36, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  orderButtonText: { color: colors.text, fontWeight: '800', fontSize: 11 },
   switchRow: { ...commonStyles.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchLabel: { color: colors.text, fontWeight: '800', textAlign: 'right' },
+  photoEditor: { ...commonStyles.card, alignItems: 'center', gap: 12 },
+  photoPreview: { width: 112, height: 112, borderRadius: 56, backgroundColor: colors.primarySurface },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  photoPlaceholderText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  photoButton: { minHeight: 44, alignSelf: 'stretch', borderRadius: 12, backgroundColor: colors.primarySurface, alignItems: 'center', justifyContent: 'center' },
+  photoButtonText: { color: colors.primaryDark, fontWeight: '900', textAlign: 'center' },
   deleteButton: { minHeight: 50, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.dangerSurface, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   deleteText: { color: colors.danger, fontWeight: '900' },
   cancelButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },

@@ -6,6 +6,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, Toucha
 
 import { useApp } from '../../src/context/AppContext'
 import { useTheme } from '../../src/theme'
+import type { Session } from '../../src/types'
 
 export default function DashboardScreen() {
   const db = useSQLiteContext()
@@ -15,16 +16,26 @@ export default function DashboardScreen() {
   const styles = createStyles(colors, commonStyles)
   const [counts, setCounts] = useState({ sessions: 0, students: 0, pending: 0, conflicts: 0 })
   const [online, setOnline] = useState<boolean | null>(null)
+  const [openSession, setOpenSession] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null>(null)
   const membership = user?.memberships.find((item) => item.tahfiz_id === activeTahfizId)
 
   const load = useCallback(async () => {
     if (!activeTahfizId) return
-    const [sessions, students, pending, conflicts, network] = await Promise.all([
+    const [sessions, students, pending, conflicts, network, nextOpen] = await Promise.all([
       db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM sessions WHERE tahfiz_id=?', activeTahfizId),
       db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM students WHERE tahfiz_id=?', activeTahfizId),
       db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM outbox WHERE tahfiz_id=?', activeTahfizId),
       db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM conflicts WHERE tahfiz_id=?', activeTahfizId),
       Network.getNetworkStateAsync(),
+      db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>(
+        `SELECT * FROM sessions
+         WHERE tahfiz_id=? AND is_confirmed=0
+         ORDER BY CASE WHEN date>=date('now') THEN 0 ELSE 1 END,
+                  CASE WHEN date>=date('now') THEN date END ASC,
+                  date DESC,id DESC
+         LIMIT 1`,
+        activeTahfizId,
+      ),
     ])
     setCounts({
       sessions: sessions?.count ?? 0,
@@ -33,6 +44,7 @@ export default function DashboardScreen() {
       conflicts: conflicts?.count ?? 0,
     })
     setOnline(Boolean(network.isConnected))
+    setOpenSession(nextOpen)
   }, [db, activeTahfizId])
 
   useFocusEffect(useCallback(() => { void load() }, [load]))
@@ -78,9 +90,20 @@ export default function DashboardScreen() {
         </Text>
       ) : null}
 
-      <TouchableOpacity style={styles.primaryCard} onPress={() => router.push('/(tabs)/sessions')}>
-        <Text style={styles.primaryTitle}>تسجيل حلقة اليوم</Text>
-        <Text style={styles.primaryText}>الحضور والتقدم يعملان دون اتصال ويتم حفظهما فوراً على الجهاز.</Text>
+      <TouchableOpacity
+        style={styles.primaryCard}
+        onPress={() => openSession
+          ? router.push({ pathname: '/session/[id]', params: { id: String(openSession.id) } })
+          : router.push('/(tabs)/sessions')}
+      >
+        <Text style={styles.primaryTitle}>{openSession ? 'متابعة الحلقة المفتوحة' : 'تسجيل حلقة اليوم'}</Text>
+        <Text style={styles.primaryText}>
+          {openSession
+            ? `${new Date(`${openSession.date}T12:00:00`).toLocaleDateString('ar-EG', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            })} · اضغط لفتح الحضور والتقدم المحفوظين.`
+            : 'الحضور والتقدم يعملان دون اتصال ويتم حفظهما فوراً على الجهاز.'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   )

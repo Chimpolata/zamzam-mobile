@@ -9,6 +9,7 @@ import type {
   FeedbackCategory,
   FeedbackReport,
   FeedbackStatus,
+  TahfizInvitation,
   User,
 } from '../types'
 import type { components } from '../../contracts/src/api'
@@ -38,6 +39,10 @@ async function refreshAccessToken() {
   return true
 }
 
+function isFormData(body: BodyInit | null | undefined): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { tahfizId, retryAuth = true, ...fetchOptions } = options
   const accessToken = await getAccessToken()
@@ -49,7 +54,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(fetchOptions.body && !isFormData(fetchOptions.body) ? { 'Content-Type': 'application/json' } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(tahfizId ? { 'X-Tahfiz-ID': String(tahfizId) } : {}),
         ...(fetchOptions.headers ?? {}),
@@ -86,8 +91,48 @@ export const api = {
       }),
     })
   },
+  signup(tahfizName: string, username: string, password: string, contactPhone?: string) {
+    return request<{ message: string; tahfiz_id: number; status: string }>('/auth/signup', {
+      method: 'POST',
+      retryAuth: false,
+      body: JSON.stringify({
+        tahfiz_name: tahfizName,
+        username,
+        password,
+        contact_phone: contactPhone?.trim() || null,
+      }),
+    })
+  },
+  invitationPreview(token: string) {
+    return request<TahfizInvitation>(`/invitations/preview/${encodeURIComponent(token)}`, {
+      retryAuth: false,
+    })
+  },
+  registerWithInvitation(token: string, username: string, password: string) {
+    return request<{ access_token: string; token_type: string }>(
+      `/invitations/register/${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        retryAuth: false,
+        body: JSON.stringify({ username, password }),
+      },
+    )
+  },
+  acceptInvitation(token: string) {
+    return request<{ message: string; tahfiz_id: number; role: 'admin' | 'sheikh' }>(
+      `/invitations/accept/${encodeURIComponent(token)}`,
+      { method: 'POST' },
+    )
+  },
   me(tahfizId?: number) {
     return request<User>('/auth/me', { tahfizId })
+  },
+  setDefaultTahfiz(tahfizId: number) {
+    return request<{ tahfiz_id: number; message: string }>('/auth/default-tahfiz', {
+      method: 'POST',
+      tahfizId,
+      body: JSON.stringify({ tahfiz_id: tahfizId }),
+    })
   },
   bootstrap(tahfizId: number) {
     return request<Bootstrap>('/sync/v1/bootstrap?history_days=90', { tahfizId })
@@ -163,6 +208,37 @@ export const api = {
     return request<FeedbackReport>(`/platform/feedback/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status, resolution_note: resolutionNote || null }),
+    })
+  },
+  uploadStudentPic(
+    tahfizId: number,
+    studentId: number,
+    asset: { uri: string; fileName?: string | null; mimeType?: string | null },
+  ) {
+    const formData = new FormData()
+    formData.append('file', {
+      uri: asset.uri,
+      name: asset.fileName || `student-${studentId}.jpg`,
+      type: asset.mimeType || 'image/jpeg',
+    } as unknown as Blob)
+    return request<{ profile_pic?: string }>(`/students/${studentId}/upload-pic`, {
+      method: 'POST',
+      tahfizId,
+      body: formData,
+    })
+  },
+  moveStudentSheikh(tahfizId: number, studentId: number, sheikhId: number) {
+    return request<void>(`/students/${studentId}/move-sheikh`, {
+      method: 'POST',
+      tahfizId,
+      body: JSON.stringify({ sheikh_id: sheikhId }),
+    })
+  },
+  reorderStudents(tahfizId: number, sheikhId: number, studentIds: number[]) {
+    return request<void>(`/sheikhs/${sheikhId}/students/reorder`, {
+      method: 'PUT',
+      tahfizId,
+      body: JSON.stringify({ student_ids: studentIds }),
     })
   },
   get(path: string, tahfizId?: number) {
