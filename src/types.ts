@@ -45,6 +45,9 @@ export interface User {
     week_start_day: number
     month_start_day: number
     attendance_statuses: string[]
+    attendance_status_colors: Record<string, string>
+    excused_absence_streak_limit: number
+    excused_absence_reset_statuses: string[]
     progress_tracking_enabled: boolean
   } | null
 }
@@ -75,6 +78,9 @@ export interface Student {
   tahfiz_id: number
   name: string
   phone: string | null
+  student_code: string | null
+  birthday: string | null
+  registration_date: string | null
   profile_pic: string | null
   status: string
   sheikh_id: number | null
@@ -123,6 +129,9 @@ export interface Bootstrap {
     id: number
     name: string
     attendance_statuses: string[]
+    attendance_status_colors: Record<string, string>
+    excused_absence_streak_limit: number
+    excused_absence_reset_statuses: string[]
     progress_tracking_enabled: boolean
     week_start_day: number
     month_start_day: number

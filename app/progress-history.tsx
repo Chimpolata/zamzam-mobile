@@ -218,7 +218,7 @@ export default function ProgressHistoryScreen() {
         <TouchableOpacity
           style={commonStyles.card}
           onPress={() => router.push({
-            pathname: '/student/[id]/progress',
+            pathname: '/student/[id]',
             params: { id: String(item.student_id), name: item.student_name },
           })}
         >
@@ -243,7 +243,7 @@ export default function ProgressHistoryScreen() {
           {item.dirty ? <Text style={styles.pending}>بانتظار المزامنة</Text> : null}
           {item.notes ? <Text style={styles.detail}>ملاحظات: {item.notes}</Text> : null}
           {item.next_assignment ? <Text style={styles.assignment}>التكليف القادم: {item.next_assignment}</Text> : null}
-          <Text style={styles.openProfile}>فتح ملف الطالب والأهداف ←</Text>
+          <Text style={styles.openProfile}>فتح ملف الطالب ←</Text>
         </TouchableOpacity>
       )}
       ItemSeparatorComponent={() => <View style={{ height: 10 }} />}

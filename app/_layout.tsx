@@ -67,6 +67,7 @@ function AppNavigation() {
         <Stack.Screen name="platform" options={{ title: 'إدارة المنصة' }} />
         <Stack.Screen name="invitations" options={{ title: 'دعوات الانضمام' }} />
         <Stack.Screen name="warnings" options={{ title: 'الإنذارات' }} />
+        <Stack.Screen name="student/[id]" options={{ title: 'ملف الطالب' }} />
         <Stack.Screen name="student/[id]/progress" options={{ title: 'تقدم الطالب' }} />
         <Stack.Screen name="student/[id]/exceptions" options={{ title: 'أيام العذر' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

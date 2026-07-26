@@ -20,6 +20,7 @@ import {
   queueAttendance,
   queueProgress,
   sessionAttendance,
+  excusedAbsenceStreak,
 } from '../../src/db/database'
 import { api } from '../../src/lib/api'
 import { getDeviceId } from '../../src/lib/session-store'
@@ -57,18 +58,45 @@ interface LocalProgressRow {
   dirty: number
 }
 
+const STATUS_PALETTES: Record<string, { background: string; border: string; text: string }> = {
+  green: { background: '#ecfdf5', border: '#86efac', text: '#047857' },
+  slate: { background: '#f8fafc', border: '#cbd5e1', text: '#475569' },
+  amber: { background: '#fffbeb', border: '#fde68a', text: '#a16207' },
+  sky: { background: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+  violet: { background: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9' },
+  rose: { background: '#fff1f2', border: '#fecdd3', text: '#be123c' },
+}
+const DARK_STATUS_PALETTES: Record<string, { background: string; border: string; text: string }> = {
+  green: { background: '#064e3b', border: '#047857', text: '#a7f3d0' },
+  slate: { background: '#334155', border: '#64748b', text: '#e2e8f0' },
+  amber: { background: '#713f12', border: '#a16207', text: '#fde68a' },
+  sky: { background: '#1e3a8a', border: '#1d4ed8', text: '#bfdbfe' },
+  violet: { background: '#4c1d95', border: '#7c3aed', text: '#ddd6fe' },
+  rose: { background: '#881337', border: '#be123c', text: '#fecdd3' },
+}
+
+function statusPalette(key?: string, dark = false) {
+  const palettes = dark ? DARK_STATUS_PALETTES : STATUS_PALETTES
+  return palettes[key || 'violet'] || palettes.violet
+}
+
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const sessionId = Number(id)
   const router = useRouter()
   const db = useSQLiteContext()
   const { activeTahfizId, syncNow, syncing, user } = useApp()
-  const { colors, commonStyles } = useTheme()
+  const { colors, commonStyles, isDark } = useTheme()
   const styles = createStyles(colors, commonStyles)
   const [session, setSession] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null>(null)
   const [students, setStudents] = useState<AttendanceRow[]>([])
   const [progress, setProgress] = useState<LocalProgressRow[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
+  const [statusColors, setStatusColors] = useState<Record<string, string>>({})
+  const [thresholdLimit, setThresholdLimit] = useState(3)
+  const [query, setQuery] = useState('')
+  const [statusMenuStudent, setStatusMenuStudent] = useState<AttendanceRow | null>(null)
+  const [thresholdAlert, setThresholdAlert] = useState<{ student: AttendanceRow; streak: number } | null>(null)
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [savingId, setSavingId] = useState<number | null>(null)
   const [progressStudent, setProgressStudent] = useState<AttendanceRow | null>(null)
@@ -86,8 +114,8 @@ export default function SessionScreen() {
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>('SELECT * FROM sessions WHERE id=? AND tahfiz_id=?', sessionId, activeTahfizId),
       sessionAttendance<AttendanceRow>(db, sessionId),
       db.getAllAsync<LocalProgressRow>('SELECT * FROM quran_progress WHERE session_id=? ORDER BY student_id,category', sessionId),
-      db.getFirstAsync<{ attendance_statuses: string; progress_tracking_enabled: number }>(
-        'SELECT attendance_statuses,progress_tracking_enabled FROM tahfiz WHERE id=?',
+      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; progress_tracking_enabled: number }>(
+        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,progress_tracking_enabled FROM tahfiz WHERE id=?',
         activeTahfizId,
       ),
       db.getAllAsync<{ id: number }>(
@@ -99,6 +127,10 @@ export default function SessionScreen() {
     setStudents(attendanceRows)
     setProgress(progressRows)
     setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق'])
+    setStatusColors(tahfiz ? JSON.parse(tahfiz.attendance_status_colors) : {
+      'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
+    })
+    setThresholdLimit(tahfiz?.excused_absence_streak_limit ?? 3)
     setProgressEnabled(Boolean(tahfiz?.progress_tracking_enabled))
     const currentIndex = sessionRows.findIndex((row) => row.id === sessionId)
     setAdjacent({
@@ -112,11 +144,17 @@ export default function SessionScreen() {
     if (!activeTahfizId || session?.is_confirmed) return
     setSavingId(student.id)
     try {
+      const previousStreak = await excusedAbsenceStreak(db, activeTahfizId, student.id)
       await queueAttendance(
         db, await getDeviceId(), activeTahfizId, sessionId, student.id,
         status, student.notes, student.sheikh_id,
       )
       await load()
+      const currentStreak = await excusedAbsenceStreak(db, activeTahfizId, student.id)
+      if (previousStreak <= thresholdLimit && currentStreak > thresholdLimit) {
+        setThresholdAlert({ student, streak: currentStreak })
+        setTimeout(() => setThresholdAlert(current => current?.student.id === student.id && current.streak === currentStreak ? null : current), 8000)
+      }
     } catch (error) {
       Alert.alert('تعذر الحفظ', error instanceof Error ? error.message : 'حاول مرة أخرى')
     } finally {
@@ -158,12 +196,18 @@ export default function SessionScreen() {
   }
 
   const present = useMemo(() => students.filter((item) => item.status === 'حاضر').length, [students])
+  const filteredStudents = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase('ar')
+    return students.filter(item => !normalized
+      || item.name.toLocaleLowerCase('ar').includes(normalized)
+      || item.phone?.toLocaleLowerCase('ar').includes(normalized))
+  }, [students, query])
   if (!session) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
 
   return (
     <View style={commonStyles.screen}>
       <FlatList
-        data={students}
+        data={filteredStudents}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={commonStyles.content}
         ListHeaderComponent={
@@ -204,6 +248,13 @@ export default function SessionScreen() {
               <Text style={styles.bulkProgressButtonText}>تطبيق متابعة قرآن موحدة على الحاضرين ({present})</Text>
             </TouchableOpacity>
           ) : null}
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="ابحث باسم الطالب أو الهاتف"
+            placeholderTextColor={colors.muted}
+            style={[commonStyles.input, styles.searchInput]}
+          />
           </View>
         }
         renderItem={({ item }) => (
@@ -213,23 +264,30 @@ export default function SessionScreen() {
               return (
                 <>
             <View style={styles.studentHeader}>
-              <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(item.id), name: item.name } })}
+              >
                 <Text style={styles.studentName}>{item.name}</Text>
                 {item.dirty ? <Text style={styles.pending}>بانتظار المزامنة</Text> : null}
-              </View>
+              </TouchableOpacity>
               {savingId === item.id ? <ActivityIndicator color={colors.primary} /> : null}
             </View>
-            <View style={styles.statuses}>
-              {statuses.map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  disabled={Boolean(session.is_confirmed)}
-                  onPress={() => void changeStatus(item, status)}
-                  style={[styles.status, item.status === status && styles.statusSelected]}
-                >
-                  <Text style={[styles.statusText, item.status === status && styles.statusTextSelected]}>{status}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={[styles.splitStatus, { borderColor: statusPalette(statusColors[item.status], isDark).border, backgroundColor: statusPalette(statusColors[item.status], isDark).background }]}>
+              <TouchableOpacity
+                disabled={Boolean(session.is_confirmed)}
+                onPress={() => {
+                  const index = statuses.indexOf(item.status)
+                  const next = statuses[(index + 1 + statuses.length) % statuses.length]
+                  void changeStatus(item, next)
+                }}
+                style={styles.cycleStatus}
+              >
+                <Text style={[styles.cycleStatusText, { color: statusPalette(statusColors[item.status], isDark).text }]}>{item.status}{savingId === item.id ? '…' : ''}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={Boolean(session.is_confirmed)} onPress={() => setStatusMenuStudent(item)} style={[styles.statusArrow, { borderRightColor: statusPalette(statusColors[item.status], isDark).border }]}>
+                <Text style={[styles.statusArrowText, { color: statusPalette(statusColors[item.status], isDark).text }]}>⌄</Text>
+              </TouchableOpacity>
             </View>
             <TouchableOpacity
               disabled={Boolean(session.is_confirmed)}
@@ -279,6 +337,38 @@ export default function SessionScreen() {
         onClose={() => setProgressStudent(null)}
         onSaved={load}
       />
+      <Modal visible={Boolean(statusMenuStudent)} transparent animationType="fade" onRequestClose={() => setStatusMenuStudent(null)}>
+        <TouchableOpacity activeOpacity={1} style={styles.menuBackdrop} onPress={() => setStatusMenuStudent(null)}>
+          <View style={[commonStyles.card, styles.statusMenu]}>
+            <Text style={commonStyles.title}>حالة {statusMenuStudent?.name}</Text>
+            {statuses.map(status => {
+              const palette = statusPalette(statusColors[status], isDark)
+              return (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.statusMenuOption, { borderColor: palette.border, backgroundColor: palette.background }]}
+                  onPress={() => {
+                    const student = statusMenuStudent
+                    setStatusMenuStudent(null)
+                    if (student && student.status !== status) void changeStatus(student, status)
+                  }}
+                >
+                  <Text style={[styles.statusMenuOptionText, { color: palette.text }]}>{statusMenuStudent?.status === status ? '✓  ' : ''}{status}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      {thresholdAlert ? (
+        <TouchableOpacity
+          style={[commonStyles.card, styles.thresholdAlert]}
+          onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(thresholdAlert.student.id), name: thresholdAlert.student.name } })}
+        >
+          <Text style={styles.thresholdAlertTitle}>{thresholdAlert.student.name}</Text>
+          <Text style={styles.thresholdAlertText}>تجاوز حد الغياب بعذر المتتالي: {thresholdAlert.streak} مرات (الحد {thresholdLimit}). اضغط لفتح الملف.</Text>
+        </TouchableOpacity>
+      ) : null}
       <AttendanceNotesModal
         student={notesStudent}
         sessionId={sessionId}
@@ -687,12 +777,25 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   student: { ...commonStyles.card, gap: 11 },
   studentHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   studentName: { color: colors.text, fontWeight: '900', fontSize: 17, textAlign: 'right' },
+  searchInput: { marginTop: 2 },
   pending: { color: colors.warning, fontSize: 11, textAlign: 'right' },
   statuses: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 },
   status: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8 },
   statusSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   statusText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   statusTextSelected: { color: '#fff' },
+  splitStatus: { minHeight: 46, borderWidth: 1, borderRadius: 13, flexDirection: 'row-reverse', overflow: 'hidden' },
+  cycleStatus: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  cycleStatusText: { fontSize: 13, fontWeight: '900' },
+  statusArrow: { width: 46, borderRightWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  statusArrowText: { fontSize: 20, fontWeight: '900', lineHeight: 22 },
+  menuBackdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(2, 6, 23, 0.55)' },
+  statusMenu: { gap: 9, maxWidth: 440, width: '100%', alignSelf: 'center' },
+  statusMenuOption: { minHeight: 48, borderWidth: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 10 },
+  statusMenuOptionText: { fontWeight: '900', fontSize: 14 },
+  thresholdAlert: { position: 'absolute', top: 12, left: 12, right: 12, zIndex: 50, borderColor: '#fbbf24', backgroundColor: '#fffbeb' },
+  thresholdAlertTitle: { color: '#92400e', textAlign: 'right', fontWeight: '900', fontSize: 15 },
+  thresholdAlertText: { color: '#a16207', textAlign: 'right', fontSize: 12, lineHeight: 20, marginTop: 3 },
   notesButton: { backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 10 },
   notesButtonText: { color: colors.text, textAlign: 'right', fontWeight: '700', fontSize: 12 },
   progressSummary: { backgroundColor: colors.background, borderRadius: 12, padding: 10, gap: 5 },

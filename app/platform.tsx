@@ -68,7 +68,7 @@ export default function PlatformScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<'all' | TahfizStatus>('all')
+  const [status, setStatus] = useState<'all' | TahfizStatus>('active')
   const [section, setSection] = useState<'tahfiz' | 'users'>('tahfiz')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [reasonAction, setReasonAction] = useState<{ item: PlatformTahfiz; action: 'reject' | 'suspend' } | null>(null)

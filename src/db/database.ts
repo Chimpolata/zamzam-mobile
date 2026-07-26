@@ -14,7 +14,7 @@ import type {
 } from '../types'
 
 const DB_KEY_NAME = 'zamzam.db.key.v1'
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 
 async function databaseKey(): Promise<string> {
   const existing = await SecureStore.getItemAsync(DB_KEY_NAME)
@@ -47,6 +47,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       id INTEGER PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       attendance_statuses TEXT NOT NULL,
+      attendance_status_colors TEXT NOT NULL DEFAULT '{}',
+      excused_absence_streak_limit INTEGER NOT NULL DEFAULT 3,
+      excused_absence_reset_statuses TEXT NOT NULL DEFAULT '["حاضر"]',
       progress_tracking_enabled INTEGER NOT NULL DEFAULT 0,
       week_start_day INTEGER NOT NULL DEFAULT 6,
       month_start_day INTEGER NOT NULL DEFAULT 1,
@@ -65,6 +68,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       tahfiz_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       phone TEXT,
+      student_code TEXT,
+      birthday TEXT,
+      registration_date TEXT,
       profile_pic TEXT,
       status TEXT NOT NULL,
       sheikh_id INTEGER,
@@ -143,8 +149,22 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       created_at TEXT NOT NULL,
       UNIQUE(tahfiz_id, mutation_id)
     );
-    PRAGMA user_version = 1;
   `)
+  const tahfizColumns = new Set((await db.getAllAsync<{ name: string }>('PRAGMA table_info(tahfiz)')).map(column => column.name))
+  if (!tahfizColumns.has('excused_absence_streak_limit')) {
+    await db.execAsync('ALTER TABLE tahfiz ADD COLUMN excused_absence_streak_limit INTEGER NOT NULL DEFAULT 3')
+  }
+  if (!tahfizColumns.has('attendance_status_colors')) {
+    await db.execAsync(`ALTER TABLE tahfiz ADD COLUMN attendance_status_colors TEXT NOT NULL DEFAULT '{}'`)
+  }
+  if (!tahfizColumns.has('excused_absence_reset_statuses')) {
+    await db.execAsync(`ALTER TABLE tahfiz ADD COLUMN excused_absence_reset_statuses TEXT NOT NULL DEFAULT '["حاضر"]'`)
+  }
+  const studentColumns = new Set((await db.getAllAsync<{ name: string }>('PRAGMA table_info(students)')).map(column => column.name))
+  if (!studentColumns.has('student_code')) await db.execAsync('ALTER TABLE students ADD COLUMN student_code TEXT')
+  if (!studentColumns.has('birthday')) await db.execAsync('ALTER TABLE students ADD COLUMN birthday TEXT')
+  if (!studentColumns.has('registration_date')) await db.execAsync('ALTER TABLE students ADD COLUMN registration_date TEXT')
+  await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`)
 }
 
 export async function openEncryptedDatabase() {
@@ -157,16 +177,22 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.runAsync(
       `INSERT INTO tahfiz
-       (id, name, attendance_statuses, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       (id, name, attendance_statuses, attendance_status_colors, excused_absence_streak_limit, excused_absence_reset_statuses, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, attendance_statuses=excluded.attendance_statuses,
+         attendance_status_colors=excluded.attendance_status_colors,
+         excused_absence_streak_limit=excluded.excused_absence_streak_limit,
+         excused_absence_reset_statuses=excluded.excused_absence_reset_statuses,
          progress_tracking_enabled=excluded.progress_tracking_enabled,
          week_start_day=excluded.week_start_day, month_start_day=excluded.month_start_day,
          cursor=excluded.cursor, last_synced_at=excluded.last_synced_at`,
       data.tahfiz.id,
       data.tahfiz.name,
       JSON.stringify(data.tahfiz.attendance_statuses),
+      JSON.stringify(data.tahfiz.attendance_status_colors),
+      data.tahfiz.excused_absence_streak_limit,
+      JSON.stringify(data.tahfiz.excused_absence_reset_statuses),
       data.tahfiz.progress_tracking_enabled ? 1 : 0,
       data.tahfiz.week_start_day,
       data.tahfiz.month_start_day,
@@ -279,11 +305,34 @@ async function pruneMissingBootstrapRows(db: SQLiteDatabase, data: Bootstrap) {
 
 async function upsertStudent(db: SQLiteDatabase, row: Student) {
   await db.runAsync(
-    `INSERT INTO students(id,tahfiz_id,name,phone,profile_pic,status,sheikh_id,sort_order) VALUES(?,?,?,?,?,?,?,?)
+    `INSERT INTO students(id,tahfiz_id,name,phone,student_code,birthday,registration_date,profile_pic,status,sheikh_id,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(id) DO UPDATE SET tahfiz_id=excluded.tahfiz_id,name=excluded.name,phone=excluded.phone,
+       student_code=excluded.student_code,birthday=excluded.birthday,registration_date=excluded.registration_date,
        profile_pic=excluded.profile_pic,status=excluded.status,sheikh_id=excluded.sheikh_id,sort_order=excluded.sort_order`,
-    row.id, row.tahfiz_id, row.name, row.phone, row.profile_pic, row.status, row.sheikh_id, row.sort_order,
+    row.id, row.tahfiz_id, row.name, row.phone, row.student_code, row.birthday, row.registration_date,
+    row.profile_pic, row.status, row.sheikh_id, row.sort_order,
   )
+}
+
+export async function excusedAbsenceStreak(db: SQLiteDatabase, tahfizId: number, studentId: number) {
+  const settings = await db.getFirstAsync<{ excused_absence_reset_statuses: string }>(
+    'SELECT excused_absence_reset_statuses FROM tahfiz WHERE id=?',
+    tahfizId,
+  )
+  const resetStatuses = new Set<string>(settings ? JSON.parse(settings.excused_absence_reset_statuses) : ['حاضر'])
+  const rows = await db.getAllAsync<{ status: string }>(
+    `SELECT a.status FROM attendance a
+     JOIN sessions s ON s.id=a.session_id
+     WHERE a.tahfiz_id=? AND a.student_id=?
+     ORDER BY s.date DESC,s.id DESC,a.id DESC`,
+    tahfizId, studentId,
+  )
+  let streak = 0
+  for (const row of rows) {
+    if (row.status === 'غياب بعذر') streak += 1
+    else if (resetStatuses.has(row.status)) break
+  }
+  return streak
 }
 
 async function upsertSession(db: SQLiteDatabase, row: Session) {

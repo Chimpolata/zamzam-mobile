@@ -32,6 +32,7 @@ export default function OnlineDataScreen() {
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Record<string, any> | null | undefined>(undefined)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
+  const [studentQuery, setStudentQuery] = useState('')
 
   const load = async () => {
     if (!params.endpoint) return
@@ -47,11 +48,21 @@ export default function OnlineDataScreen() {
   }
   useEffect(() => { void load() }, [activeTahfizId, params.endpoint])
 
-  const items = Array.isArray(data)
+  const rawItems = Array.isArray(data)
     ? data
     : Array.isArray(data?.students)
       ? data.students
       : data ? [data] : []
+  const normalizedStudentQuery = studentQuery.trim().toLocaleLowerCase('ar')
+  const items = params.screen === 'students'
+    ? rawItems.filter((item: Record<string, any>) => (
+      !normalizedStudentQuery
+      || String(item.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+      || String(item.student_id ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+      || String(item.phone ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+      || String(item.sheikh?.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+    ))
+    : rawItems
   const canEdit = ['students', 'sheikhs', 'users', 'invitations', 'settings', 'filters'].includes(params.screen ?? '')
   const createOnly = params.screen === 'invitations'
 
@@ -93,6 +104,9 @@ export default function OnlineDataScreen() {
             <Text style={commonStyles.buttonText}>{params.screen === 'settings' ? 'تعديل الإعدادات' : `إضافة ${params.label ?? 'سجل'}`}</Text>
           </TouchableOpacity>
         ) : null}
+        {params.screen === 'students' ? (
+          <TextInput value={studentQuery} onChangeText={setStudentQuery} placeholder="ابحث باسم الطالب أو رقمه أو هاتفه أو الشيخ" placeholderTextColor={colors.muted} style={commonStyles.input} />
+        ) : null}
         {error ? <View style={commonStyles.card}><Text style={styles.error}>{error}</Text></View> : null}
         {!loading && !error && items.length === 0 ? (
           <View style={commonStyles.card}><Text style={commonStyles.subtitle}>لا توجد بيانات.</Text></View>
@@ -123,6 +137,15 @@ export default function OnlineDataScreen() {
             {params.screen === 'students' ? (
               <View style={{ gap: 8 }}>
                 <View style={styles.studentLinks}>
+                  <TouchableOpacity
+                    style={styles.progressLink}
+                    onPress={(event) => {
+                      event.stopPropagation()
+                      router.push({ pathname: '/student/[id]', params: { id: String(item.id), name: item.name } })
+                    }}
+                  >
+                    <Text style={styles.progressLinkText}>فتح ملف الطالب</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.progressLink}
                     onPress={(event) => {
@@ -235,6 +258,7 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'week_start_day', label: 'بداية الأسبوع ٠-٦', keyboard: 'number-pad' },
     { key: 'month_start_day', label: 'بداية الشهر ١-٢٨', keyboard: 'number-pad' },
     { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة' },
+    { key: 'excused_absence_streak_limit', label: 'حد الغياب بعذر المتتالي', keyboard: 'number-pad' },
     { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true },
     { key: 'whatsend_api_url', label: 'رابط WhatsEnd API' },
     { key: 'whatsend_groups_url', label: 'رابط مجموعات WhatsEnd' },
@@ -276,6 +300,12 @@ function RecordEditor({
         ? raw.join('، ')
         : raw ?? (parentMatch?.[1] === 'type' ? 'أب' : defaultValue(screen, field.key))
     }
+    if (screen === 'settings') {
+      next.attendance_status_colors = item?.attendance_status_colors ?? {
+        'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
+      }
+      next.excused_absence_reset_statuses = item?.excused_absence_reset_statuses ?? ['حاضر']
+    }
     setValues(next)
   }, [item, screen])
 
@@ -295,6 +325,10 @@ function RecordEditor({
       } else {
         body[field.key] = raw === '' ? null : raw
       }
+    }
+    if (screen === 'settings') {
+      body.attendance_status_colors = values.attendance_status_colors ?? {}
+      body.excused_absence_reset_statuses = values.excused_absence_reset_statuses ?? []
     }
     if (screen === 'students') {
       const editedParents = [1, 2, 3].map((index) => ({
@@ -394,7 +428,20 @@ function RecordEditor({
             </TouchableOpacity>
           </View>
         ) : null}
-        {fields.map((field) => field.boolean ? (
+        {fields.map((field) => field.key === 'attendance_statuses' ? (
+          <StatusSettingsEditor
+            key={field.key}
+            value={String(values.attendance_statuses ?? '')}
+            colors={values.attendance_status_colors ?? {}}
+            resetStatuses={values.excused_absence_reset_statuses ?? []}
+            onChange={(attendanceStatuses, attendanceColors, resetStatuses) => setValues(current => ({
+              ...current,
+              attendance_statuses: attendanceStatuses.join('، '),
+              attendance_status_colors: attendanceColors,
+              excused_absence_reset_statuses: resetStatuses,
+            }))}
+          />
+        ) : field.boolean ? (
           <View key={field.key} style={styles.switchRow}>
             <Switch value={Boolean(values[field.key])} onValueChange={(value) => setValues((current) => ({ ...current, [field.key]: value }))} />
             <Text style={styles.switchLabel}>{field.label}</Text>
@@ -422,6 +469,85 @@ function RecordEditor({
         <TouchableOpacity style={styles.cancelButton} onPress={onClose}><Text style={commonStyles.subtitle}>إلغاء</Text></TouchableOpacity>
       </ScrollView>
     </Modal>
+  )
+}
+
+const STATUS_COLOR_OPTIONS = [
+  ['green', '#10b981'], ['slate', '#64748b'], ['amber', '#f59e0b'],
+  ['sky', '#0ea5e9'], ['violet', '#8b5cf6'], ['rose', '#f43f5e'],
+] as const
+
+function StatusSettingsEditor({
+  value,
+  colors,
+  resetStatuses,
+  onChange,
+}: {
+  value: string
+  colors: Record<string, string>
+  resetStatuses: string[]
+  onChange(statuses: string[], colors: Record<string, string>, resetStatuses: string[]): void
+}) {
+  const { colors: themeColors, commonStyles } = useTheme()
+  const styles = createStyles(themeColors, commonStyles)
+  const [newStatus, setNewStatus] = useState('')
+  const statuses = value.split(/[،,]/).map(status => status.trim()).filter(Boolean)
+
+  const updateStatuses = (next: string[]) => {
+    const nextColors = Object.fromEntries(next.map(status => [status, colors[status] || 'violet']))
+    onChange(next, nextColors, resetStatuses.filter(status => next.includes(status)))
+  }
+
+  return (
+    <View style={styles.statusSettings}>
+      <Text style={styles.statusSettingsTitle}>حالات الحضور وترتيبها وألوانها</Text>
+      {statuses.map((status, index) => (
+        <View key={status} style={styles.statusSettingRow}>
+          <Text style={styles.statusSettingName}>{index + 1}. {status}</Text>
+          <View style={styles.statusColorChoices}>
+            {STATUS_COLOR_OPTIONS.map(([key, color]) => (
+              <TouchableOpacity
+                key={key}
+                accessibilityLabel={`اختيار لون ${key} لحالة ${status}`}
+                accessibilityState={{ selected: (colors[status] || 'violet') === key }}
+                onPress={() => onChange(statuses, { ...colors, [status]: key }, resetStatuses)}
+                style={[styles.statusColor, { backgroundColor: color }, (colors[status] || 'violet') === key && styles.statusColorSelected]}
+              />
+            ))}
+          </View>
+          <View style={styles.statusActions}>
+            <TouchableOpacity disabled={index === 0} onPress={() => {
+              const next = [...statuses]
+              ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+              updateStatuses(next)
+            }} style={[styles.smallStatusButton, index === 0 && { opacity: 0.3 }]}><Text style={styles.smallStatusButtonText}>↑</Text></TouchableOpacity>
+            <TouchableOpacity disabled={index === statuses.length - 1} onPress={() => {
+              const next = [...statuses]
+              ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
+              updateStatuses(next)
+            }} style={[styles.smallStatusButton, index === statuses.length - 1 && { opacity: 0.3 }]}><Text style={styles.smallStatusButtonText}>↓</Text></TouchableOpacity>
+            <TouchableOpacity disabled={statuses.length === 1} onPress={() => updateStatuses(statuses.filter(item => item !== status))} style={styles.smallStatusButton}><Text style={[styles.smallStatusButtonText, { color: themeColors.danger }]}>حذف</Text></TouchableOpacity>
+          </View>
+          {status !== 'غياب بعذر' ? (
+            <TouchableOpacity
+              onPress={() => onChange(statuses, colors, resetStatuses.includes(status) ? resetStatuses.filter(item => item !== status) : [...resetStatuses, status])}
+              style={[styles.resetStatusToggle, resetStatuses.includes(status) && styles.resetStatusToggleActive]}
+            >
+              <Text style={styles.resetStatusToggleText}>{resetStatuses.includes(status) ? '✓ يصفّر عداد الغياب بعذر' : 'لا يصفّر العداد'}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ))}
+      <View style={styles.addStatusRow}>
+        <TextInput value={newStatus} onChangeText={setNewStatus} placeholder="حالة جديدة" placeholderTextColor={themeColors.muted} style={[commonStyles.input, { flex: 1 }]} />
+        <TouchableOpacity onPress={() => {
+          const status = newStatus.trim()
+          if (!status || statuses.includes(status)) return
+          setNewStatus('')
+          onChange([...statuses, status], { ...colors, [status]: 'violet' }, resetStatuses)
+        }} style={styles.addStatusButton}><Text style={styles.addStatusButtonText}>إضافة</Text></TouchableOpacity>
+      </View>
+    </View>
   )
 }
 
@@ -499,6 +625,22 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   orderButtons: { flexDirection: 'row-reverse', gap: 8 },
   orderButton: { flex: 1, minHeight: 36, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   orderButtonText: { color: colors.text, fontWeight: '800', fontSize: 11 },
+  statusSettings: { ...commonStyles.card, gap: 10 },
+  statusSettingsTitle: { color: colors.text, textAlign: 'right', fontWeight: '900' },
+  statusSettingRow: { borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 10, gap: 9 },
+  statusSettingName: { color: colors.text, textAlign: 'right', fontWeight: '900' },
+  statusColorChoices: { flexDirection: 'row-reverse', gap: 9, justifyContent: 'flex-start' },
+  statusColor: { width: 25, height: 25, borderRadius: 13 },
+  statusColorSelected: { borderWidth: 3, borderColor: colors.text },
+  statusActions: { flexDirection: 'row-reverse', gap: 7 },
+  smallStatusButton: { minWidth: 40, minHeight: 34, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  smallStatusButtonText: { color: colors.text, fontWeight: '900', fontSize: 11 },
+  resetStatusToggle: { borderRadius: 9, padding: 8, backgroundColor: colors.surfaceMuted },
+  resetStatusToggleActive: { backgroundColor: colors.primarySurface },
+  resetStatusToggleText: { color: colors.text, textAlign: 'right', fontWeight: '700', fontSize: 11 },
+  addStatusRow: { flexDirection: 'row-reverse', gap: 8, alignItems: 'center' },
+  addStatusButton: { minHeight: 48, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  addStatusButtonText: { color: '#fff', fontWeight: '900' },
   switchRow: { ...commonStyles.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchLabel: { color: colors.text, fontWeight: '800', textAlign: 'right' },
   photoEditor: { ...commonStyles.card, alignItems: 'center', gap: 12 },

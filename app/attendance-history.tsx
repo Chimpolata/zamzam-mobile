@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useSQLiteContext } from 'expo-sqlite'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
@@ -47,6 +47,7 @@ const initialFromDate = () => {
 }
 
 export default function AttendanceHistoryScreen() {
+  const router = useRouter()
   const db = useSQLiteContext()
   const { activeTahfizId, user } = useApp()
   const { colors, commonStyles } = useTheme()
@@ -349,7 +350,9 @@ export default function AttendanceHistoryScreen() {
               {item.dirty ? <Text style={styles.pending}>بانتظار المزامنة</Text> : null}
             </View>
             <View style={styles.nameBlock}>
-              <Text style={styles.name}>{item.student_name}</Text>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(item.student_id), name: item.student_name } })}>
+                <Text style={styles.name}>{item.student_name}</Text>
+              </TouchableOpacity>
               <Text style={styles.meta}>
                 {new Date(`${item.date}T12:00:00`).toLocaleDateString('ar-EG', {
                   weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',

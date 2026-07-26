@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -37,6 +37,7 @@ interface StudentRow {
 }
 
 export default function WarningsScreen() {
+  const router = useRouter()
   const { activeTahfizId } = useApp()
   const { colors, commonStyles } = useTheme()
   const styles = createStyles(colors)
@@ -220,7 +221,12 @@ export default function WarningsScreen() {
                 </View>
               ) : <Text style={styles.sent}>تم الإرسال ✓</Text>}
               <View style={{ flex: 1 }}>
-                <Text style={styles.student}>{item.student_name}</Text>
+                <TouchableOpacity onPress={(event) => {
+                  event.stopPropagation()
+                  router.push({ pathname: '/student/[id]', params: { id: String(item.student_id), name: item.student_name } })
+                }}>
+                  <Text style={styles.student}>{item.student_name}</Text>
+                </TouchableOpacity>
                 <Text style={commonStyles.subtitle}>
                   الإنذار {item.warning_number} · {item.sheikh_name || 'دون شيخ'}
                 </Text>
