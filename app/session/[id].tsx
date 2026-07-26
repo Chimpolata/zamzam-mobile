@@ -58,6 +58,11 @@ interface LocalProgressRow {
   dirty: number
 }
 
+interface SheikhRow {
+  id: number
+  name: string
+}
+
 const STATUS_PALETTES: Record<string, { background: string; border: string; text: string }> = {
   green: { background: '#ecfdf5', border: '#86efac', text: '#047857' },
   slate: { background: '#f8fafc', border: '#cbd5e1', text: '#475569' },
@@ -100,10 +105,16 @@ export default function SessionScreen() {
   const [statusMenuStudent, setStatusMenuStudent] = useState<AttendanceRow | null>(null)
   const [thresholdAlert, setThresholdAlert] = useState<{ student: AttendanceRow; streak: number } | null>(null)
   const [progressEnabled, setProgressEnabled] = useState(false)
+  const [sheikhSelectionEnabled, setSheikhSelectionEnabled] = useState(true)
+  const [sheikhs, setSheikhs] = useState<SheikhRow[]>([])
   const [pendingStatuses, setPendingStatuses] = useState<Record<number, string>>({})
   const pendingStatusesRef = useRef<Record<number, string>>({})
   const savedStatusesRef = useRef<Record<number, string>>({})
+  const [pendingSheikhs, setPendingSheikhs] = useState<Record<number, number>>({})
+  const pendingSheikhsRef = useRef<Record<number, number>>({})
+  const savedSheikhsRef = useRef<Record<number, number | null>>({})
   const [savingAttendance, setSavingAttendance] = useState(false)
+  const [sheikhMenuStudent, setSheikhMenuStudent] = useState<AttendanceRow | null>(null)
   const [progressStudent, setProgressStudent] = useState<AttendanceRow | null>(null)
   const [notesStudent, setNotesStudent] = useState<AttendanceRow | null>(null)
   const [bulkProgressOpen, setBulkProgressOpen] = useState(false)
@@ -115,24 +126,27 @@ export default function SessionScreen() {
 
   const load = useCallback(async () => {
     if (!activeTahfizId || !sessionId) return
-    const [sessionRow, attendanceRows, progressRows, tahfiz, sessionRows] = await Promise.all([
+    const [sessionRow, attendanceRows, progressRows, tahfiz, sessionRows, sheikhRows] = await Promise.all([
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>('SELECT * FROM sessions WHERE id=? AND tahfiz_id=?', sessionId, activeTahfizId),
       sessionAttendance<AttendanceRow>(db, sessionId),
       db.getAllAsync<LocalProgressRow>('SELECT * FROM quran_progress WHERE session_id=? ORDER BY student_id,category', sessionId),
-      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; attendance_streak_alert_enabled: number; attendance_streak_status: string; progress_tracking_enabled: number }>(
-        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,attendance_streak_alert_enabled,attendance_streak_status,progress_tracking_enabled FROM tahfiz WHERE id=?',
+      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; attendance_streak_alert_enabled: number; attendance_sheikh_selection_enabled: number; attendance_streak_status: string; progress_tracking_enabled: number }>(
+        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,attendance_streak_alert_enabled,attendance_sheikh_selection_enabled,attendance_streak_status,progress_tracking_enabled FROM tahfiz WHERE id=?',
         activeTahfizId,
       ),
       db.getAllAsync<{ id: number }>(
         'SELECT id FROM sessions WHERE tahfiz_id=? ORDER BY date,id',
         activeTahfizId,
       ),
+      db.getAllAsync<SheikhRow>('SELECT id,name FROM sheikhs WHERE tahfiz_id=? ORDER BY name', activeTahfizId),
     ])
     setSession(sessionRow)
     savedStatusesRef.current = Object.fromEntries(attendanceRows.map((row) => [row.id, row.status]))
+    savedSheikhsRef.current = Object.fromEntries(attendanceRows.map((row) => [row.id, row.sheikh_id]))
     setStudents(attendanceRows.map((row) => ({
       ...row,
       status: pendingStatusesRef.current[row.id] ?? row.status,
+      sheikh_id: pendingSheikhsRef.current[row.id] ?? row.sheikh_id,
     })))
     setProgress(progressRows)
     setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق'])
@@ -143,6 +157,8 @@ export default function SessionScreen() {
     setThresholdEnabled(Boolean(tahfiz?.attendance_streak_alert_enabled))
     setThresholdStatus(tahfiz?.attendance_streak_status || 'غياب بعذر')
     setProgressEnabled(Boolean(tahfiz?.progress_tracking_enabled))
+    setSheikhSelectionEnabled(tahfiz?.attendance_sheikh_selection_enabled !== 0)
+    setSheikhs(sheikhRows)
     const currentIndex = sessionRows.findIndex((row) => row.id === sessionId)
     setAdjacent({
       previous: currentIndex > 0 ? sessionRows[currentIndex - 1].id : null,
@@ -163,30 +179,49 @@ export default function SessionScreen() {
     })
   }
 
+  const changeSheikh = (student: AttendanceRow, sheikhId: number) => {
+    if (!activeTahfizId || session?.is_confirmed) return
+    setStudents((current) => current.map((item) => item.id === student.id ? { ...item, sheikh_id: sheikhId } : item))
+    setPendingSheikhs((current) => {
+      const next = { ...current }
+      if (savedSheikhsRef.current[student.id] === sheikhId) delete next[student.id]
+      else next[student.id] = sheikhId
+      pendingSheikhsRef.current = next
+      return next
+    })
+  }
+
   const saveAttendance = async () => {
     if (!activeTahfizId || session?.is_confirmed || savingAttendance) return
-    const changes = Object.entries(pendingStatusesRef.current)
-    if (!changes.length) return
+    const statusChanges = Object.entries(pendingStatusesRef.current)
+    const changedStudentIds = [...new Set([
+      ...Object.keys(pendingStatusesRef.current),
+      ...Object.keys(pendingSheikhsRef.current),
+    ])].map(Number)
+    if (!changedStudentIds.length) return
     setSavingAttendance(true)
     try {
       const deviceId = await getDeviceId()
       const previousStreaks = new Map<number, number>()
-      await Promise.all(changes.map(async ([studentId]) => {
-        const id = Number(studentId)
+      await Promise.all(changedStudentIds.map(async (id) => {
         previousStreaks.set(id, await attendanceStatusStreak(db, activeTahfizId, id))
       }))
-      for (const [studentId, status] of changes) {
-        const student = students.find((item) => item.id === Number(studentId))
+      for (const studentId of changedStudentIds) {
+        const student = students.find((item) => item.id === studentId)
         if (!student) continue
         await queueAttendance(
           db, deviceId, activeTahfizId, sessionId, student.id,
-          status, student.notes, student.sheikh_id,
+          pendingStatusesRef.current[student.id] ?? student.status,
+          student.notes,
+          pendingSheikhsRef.current[student.id] ?? student.sheikh_id,
         )
       }
       pendingStatusesRef.current = {}
+      pendingSheikhsRef.current = {}
       setPendingStatuses({})
+      setPendingSheikhs({})
       await load()
-      for (const [studentId] of changes) {
+      for (const [studentId] of statusChanges) {
         const student = students.find((item) => item.id === Number(studentId))
         if (!student) continue
         const currentStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
@@ -209,7 +244,7 @@ export default function SessionScreen() {
     }
   }
 
-  const pendingStatusCount = Object.keys(pendingStatuses).length
+  const pendingStatusCount = new Set([...Object.keys(pendingStatuses), ...Object.keys(pendingSheikhs)]).size
   const confirm = async () => {
     if (!activeTahfizId || !session || !admin) return
     Alert.alert(
@@ -319,8 +354,19 @@ export default function SessionScreen() {
                 <Text style={styles.studentName}>{item.name}</Text>
                 {item.dirty ? <Text style={styles.pending}>بانتظار المزامنة</Text> : null}
               </TouchableOpacity>
-              {pendingStatuses[item.id] ? <Text style={styles.unsavedStudent}>غير محفوظ</Text> : null}
+              {pendingStatuses[item.id] || pendingSheikhs[item.id] ? <Text style={styles.unsavedStudent}>غير محفوظ</Text> : null}
             </View>
+            {sheikhSelectionEnabled && sheikhs.length ? (
+              <TouchableOpacity
+                disabled={Boolean(session.is_confirmed)}
+                style={styles.sheikhButton}
+                onPress={() => setSheikhMenuStudent(item)}
+              >
+                <Text style={styles.sheikhButtonText}>
+                  الشيخ: {sheikhs.find((sheikh) => sheikh.id === item.sheikh_id)?.name || 'غير محدد'}  ⌄
+                </Text>
+              </TouchableOpacity>
+            ) : null}
             <View style={[styles.splitStatus, { borderColor: statusPalette(statusColors[item.status], isDark).border, backgroundColor: statusPalette(statusColors[item.status], isDark).background }]}>
               <TouchableOpacity
                 disabled={Boolean(session.is_confirmed)}
@@ -405,6 +451,26 @@ export default function SessionScreen() {
                 </TouchableOpacity>
               )
             })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <Modal visible={Boolean(sheikhMenuStudent)} transparent animationType="fade" onRequestClose={() => setSheikhMenuStudent(null)}>
+        <TouchableOpacity activeOpacity={1} style={styles.menuBackdrop} onPress={() => setSheikhMenuStudent(null)}>
+          <View style={[commonStyles.card, styles.statusMenu]}>
+            <Text style={commonStyles.title}>شيخ {sheikhMenuStudent?.name}</Text>
+            {sheikhs.map((sheikh) => (
+              <TouchableOpacity
+                key={sheikh.id}
+                style={styles.sheikhMenuOption}
+                onPress={() => {
+                  const student = sheikhMenuStudent
+                  setSheikhMenuStudent(null)
+                  if (student && student.sheikh_id !== sheikh.id) changeSheikh(student, sheikh.id)
+                }}
+              >
+                <Text style={styles.sheikhMenuOptionText}>{sheikhMenuStudent?.sheikh_id === sheikh.id ? '✓  ' : ''}{sheikh.name}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -856,6 +922,10 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   cycleStatusText: { flexShrink: 1, fontSize: 13, fontWeight: '900', lineHeight: 19, textAlign: 'center' },
   statusArrow: { width: 46, borderRightWidth: 1, alignItems: 'center', justifyContent: 'center' },
   statusArrowText: { fontSize: 20, fontWeight: '900', lineHeight: 22 },
+  sheikhButton: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', padding: 10 },
+  sheikhButtonText: { color: colors.text, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  sheikhMenuOption: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 10 },
+  sheikhMenuOptionText: { color: colors.text, fontWeight: '900', fontSize: 14 },
   menuBackdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(2, 6, 23, 0.55)' },
   statusMenu: { gap: 9, maxWidth: 440, width: '100%', alignSelf: 'center' },
   statusMenuOption: { minHeight: 48, borderWidth: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 10 },

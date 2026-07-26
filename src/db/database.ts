@@ -14,7 +14,7 @@ import type {
 } from '../types'
 
 const DB_KEY_NAME = 'zamzam.db.key.v1'
-const DATABASE_VERSION = 3
+const DATABASE_VERSION = 4
 
 async function databaseKey(): Promise<string> {
   const existing = await SecureStore.getItemAsync(DB_KEY_NAME)
@@ -56,6 +56,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       excused_absence_streak_limit INTEGER NOT NULL DEFAULT 3,
       excused_absence_reset_statuses TEXT NOT NULL DEFAULT '["حاضر"]',
       attendance_streak_alert_enabled INTEGER NOT NULL DEFAULT 1,
+      attendance_sheikh_selection_enabled INTEGER NOT NULL DEFAULT 1,
       attendance_streak_status TEXT NOT NULL DEFAULT 'غياب بعذر',
       progress_tracking_enabled INTEGER NOT NULL DEFAULT 0,
       week_start_day INTEGER NOT NULL DEFAULT 6,
@@ -170,6 +171,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   if (!tahfizColumns.has('attendance_streak_alert_enabled')) {
     await db.execAsync('ALTER TABLE tahfiz ADD COLUMN attendance_streak_alert_enabled INTEGER NOT NULL DEFAULT 1')
   }
+  if (!tahfizColumns.has('attendance_sheikh_selection_enabled')) {
+    await db.execAsync('ALTER TABLE tahfiz ADD COLUMN attendance_sheikh_selection_enabled INTEGER NOT NULL DEFAULT 1')
+  }
   if (!tahfizColumns.has('attendance_streak_status')) {
     await db.execAsync(`ALTER TABLE tahfiz ADD COLUMN attendance_streak_status TEXT NOT NULL DEFAULT 'غياب بعذر'`)
   }
@@ -190,14 +194,15 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.runAsync(
       `INSERT INTO tahfiz
-       (id, name, attendance_statuses, attendance_status_colors, excused_absence_streak_limit, excused_absence_reset_statuses, attendance_streak_alert_enabled, attendance_streak_status, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, name, attendance_statuses, attendance_status_colors, excused_absence_streak_limit, excused_absence_reset_statuses, attendance_streak_alert_enabled, attendance_sheikh_selection_enabled, attendance_streak_status, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, attendance_statuses=excluded.attendance_statuses,
          attendance_status_colors=excluded.attendance_status_colors,
          excused_absence_streak_limit=excluded.excused_absence_streak_limit,
          excused_absence_reset_statuses=excluded.excused_absence_reset_statuses,
          attendance_streak_alert_enabled=excluded.attendance_streak_alert_enabled,
+         attendance_sheikh_selection_enabled=excluded.attendance_sheikh_selection_enabled,
          attendance_streak_status=excluded.attendance_streak_status,
          progress_tracking_enabled=excluded.progress_tracking_enabled,
          week_start_day=excluded.week_start_day, month_start_day=excluded.month_start_day,
@@ -209,6 +214,7 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
       data.tahfiz.attendance_streak_limit ?? data.tahfiz.excused_absence_streak_limit,
       JSON.stringify(data.tahfiz.attendance_streak_reset_statuses ?? data.tahfiz.excused_absence_reset_statuses),
       data.tahfiz.attendance_streak_alert_enabled ? 1 : 0,
+      data.tahfiz.attendance_sheikh_selection_enabled === false ? 0 : 1,
       data.tahfiz.attendance_streak_status,
       data.tahfiz.progress_tracking_enabled ? 1 : 0,
       data.tahfiz.week_start_day,

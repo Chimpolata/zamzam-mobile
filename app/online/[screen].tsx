@@ -206,6 +206,7 @@ export default function OnlineDataScreen() {
 type EditorField = {
   key: string
   label: string
+  section?: string
   keyboard?: 'default' | 'phone-pad' | 'number-pad'
   secure?: boolean
   boolean?: boolean
@@ -251,20 +252,21 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'data', label: 'قواعد التصفية بصيغة JSON' },
   ],
   settings: [
-    { key: 'name', label: 'اسم التحفيظ' },
-    { key: 'description', label: 'الوصف' },
-    { key: 'contact_phone', label: 'هاتف التواصل', keyboard: 'phone-pad' },
-    { key: 'max_warnings', label: 'الحد الأقصى للإنذارات', keyboard: 'number-pad' },
-    { key: 'week_start_day', label: 'بداية الأسبوع ٠-٦', keyboard: 'number-pad' },
-    { key: 'month_start_day', label: 'بداية الشهر ١-٢٨', keyboard: 'number-pad' },
-    { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة' },
-    { key: 'attendance_streak_alert_enabled', label: 'تنبيه تكرار حالة حضور متتالية', boolean: true },
-    { key: 'attendance_streak_limit', label: 'حد تكرار الحالة المتتالية', keyboard: 'number-pad' },
-    { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true },
-    { key: 'whatsend_enabled', label: 'تفعيل تكامل WhatSend', boolean: true },
-    { key: 'whatsend_api_url', label: 'رابط WhatsEnd API' },
-    { key: 'whatsend_groups_url', label: 'رابط مجموعات WhatsEnd' },
-    { key: 'whatsend_api_key', label: 'مفتاح WhatsEnd (اتركه فارغاً للاحتفاظ بالحالي)', secure: true },
+    { key: 'name', label: 'اسم التحفيظ', section: 'بيانات التحفيظ' },
+    { key: 'description', label: 'الوصف', section: 'بيانات التحفيظ' },
+    { key: 'contact_phone', label: 'هاتف التواصل', keyboard: 'phone-pad', section: 'بيانات التحفيظ' },
+    { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة', section: 'الحضور والحفظ' },
+    { key: 'attendance_sheikh_selection_enabled', label: 'اختيار الشيخ أثناء تسجيل الحضور', boolean: true, section: 'الحضور والحفظ' },
+    { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true, section: 'الحضور والحفظ' },
+    { key: 'attendance_streak_alert_enabled', label: 'تنبيه تكرار حالة حضور متتالية', boolean: true, section: 'التنبيهات' },
+    { key: 'attendance_streak_limit', label: 'حد تكرار الحالة المتتالية', keyboard: 'number-pad', section: 'التنبيهات' },
+    { key: 'max_warnings', label: 'الحد الأقصى للإنذارات', keyboard: 'number-pad', section: 'التنبيهات' },
+    { key: 'week_start_day', label: 'بداية الأسبوع ٠-٦', keyboard: 'number-pad', section: 'الفترات' },
+    { key: 'month_start_day', label: 'بداية الشهر ١-٢٨', keyboard: 'number-pad', section: 'الفترات' },
+    { key: 'whatsend_enabled', label: 'تفعيل تكامل WhatSend', boolean: true, section: 'التكاملات الاختيارية' },
+    { key: 'whatsend_api_url', label: 'رابط WhatsEnd API', section: 'التكاملات الاختيارية' },
+    { key: 'whatsend_groups_url', label: 'رابط مجموعات WhatsEnd', section: 'التكاملات الاختيارية' },
+    { key: 'whatsend_api_key', label: 'مفتاح WhatsEnd (اتركه فارغاً للاحتفاظ بالحالي)', secure: true, section: 'التكاملات الاختيارية' },
   ],
 }
 
@@ -310,6 +312,7 @@ function RecordEditor({
       next.attendance_streak_status = item?.attendance_streak_status ?? 'غياب بعذر'
       next.attendance_streak_limit = item?.attendance_streak_limit ?? item?.excused_absence_streak_limit ?? 3
       next.attendance_streak_alert_enabled = item?.attendance_streak_alert_enabled ?? true
+      next.attendance_sheikh_selection_enabled = item?.attendance_sheikh_selection_enabled ?? true
       next.whatsend_enabled = item?.whatsend_enabled ?? true
     }
     setValues(next)
@@ -418,6 +421,13 @@ function RecordEditor({
     }
   }
 
+  const visibleFields = fields.filter((field) => {
+    if (screen !== 'settings') return true
+    if (field.key === 'attendance_streak_limit' && !values.attendance_streak_alert_enabled) return false
+    if (field.key.startsWith('whatsend_') && field.key !== 'whatsend_enabled' && !values.whatsend_enabled) return false
+    return true
+  })
+
   return (
     <Modal visible={item !== undefined} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content} keyboardShouldPersistTaps="handled">
@@ -436,9 +446,14 @@ function RecordEditor({
             </TouchableOpacity>
           </View>
         ) : null}
-        {fields.map((field) => field.key === 'attendance_statuses' ? (
+        {visibleFields.map((field, index) => <React.Fragment key={field.key}>
+          {field.section && visibleFields[index - 1]?.section !== field.section ? (
+            <View style={styles.editorSectionHeader}>
+              <Text style={styles.editorSectionTitle}>{field.section}</Text>
+            </View>
+          ) : null}
+          {field.key === 'attendance_statuses' ? (
           <StatusSettingsEditor
-            key={field.key}
             value={String(values.attendance_statuses ?? '')}
             colors={values.attendance_status_colors ?? {}}
             resetStatuses={values.excused_absence_reset_statuses ?? []}
@@ -452,13 +467,12 @@ function RecordEditor({
             }))}
           />
         ) : field.boolean ? (
-          <View key={field.key} style={styles.switchRow}>
+          <View style={styles.switchRow}>
             <Switch value={Boolean(values[field.key])} onValueChange={(value) => setValues((current) => ({ ...current, [field.key]: value }))} />
             <Text style={styles.switchLabel}>{field.label}</Text>
           </View>
         ) : (
           <TextInput
-            key={field.key}
             value={values[field.key] === null || values[field.key] === undefined ? '' : String(values[field.key])}
             onChangeText={(value) => setValues((current) => ({ ...current, [field.key]: value }))}
             placeholder={field.label}
@@ -467,7 +481,8 @@ function RecordEditor({
             autoCapitalize={field.key === 'username' || field.key === 'role' ? 'none' : 'sentences'}
             style={commonStyles.input}
           />
-        ))}
+        )}
+        </React.Fragment>)}
         <TouchableOpacity disabled={busy} style={commonStyles.button} onPress={() => void save()}>
           {busy ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ</Text>}
         </TouchableOpacity>
@@ -661,6 +676,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   addStatusButtonText: { color: '#fff', fontWeight: '900' },
   switchRow: { ...commonStyles.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchLabel: { color: colors.text, fontWeight: '800', textAlign: 'right' },
+  editorSectionHeader: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  editorSectionTitle: { color: colors.primaryDark, fontSize: 16, fontWeight: '900', textAlign: 'right' },
   photoEditor: { ...commonStyles.card, alignItems: 'center', gap: 12 },
   photoPreview: { width: 112, height: 112, borderRadius: 56, backgroundColor: colors.primarySurface },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
