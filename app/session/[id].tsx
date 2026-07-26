@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSQLiteContext } from 'expo-sqlite'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -100,7 +100,10 @@ export default function SessionScreen() {
   const [statusMenuStudent, setStatusMenuStudent] = useState<AttendanceRow | null>(null)
   const [thresholdAlert, setThresholdAlert] = useState<{ student: AttendanceRow; streak: number } | null>(null)
   const [progressEnabled, setProgressEnabled] = useState(false)
-  const [savingId, setSavingId] = useState<number | null>(null)
+  const [pendingStatuses, setPendingStatuses] = useState<Record<number, string>>({})
+  const pendingStatusesRef = useRef<Record<number, string>>({})
+  const savedStatusesRef = useRef<Record<number, string>>({})
+  const [savingAttendance, setSavingAttendance] = useState(false)
   const [progressStudent, setProgressStudent] = useState<AttendanceRow | null>(null)
   const [notesStudent, setNotesStudent] = useState<AttendanceRow | null>(null)
   const [bulkProgressOpen, setBulkProgressOpen] = useState(false)
@@ -126,7 +129,11 @@ export default function SessionScreen() {
       ),
     ])
     setSession(sessionRow)
-    setStudents(attendanceRows)
+    savedStatusesRef.current = Object.fromEntries(attendanceRows.map((row) => [row.id, row.status]))
+    setStudents(attendanceRows.map((row) => ({
+      ...row,
+      status: pendingStatusesRef.current[row.id] ?? row.status,
+    })))
     setProgress(progressRows)
     setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق'])
     setStatusColors(tahfiz ? JSON.parse(tahfiz.attendance_status_colors) : {
@@ -144,28 +151,65 @@ export default function SessionScreen() {
   }, [db, activeTahfizId, sessionId])
   useFocusEffect(useCallback(() => { void load() }, [load]))
 
-  const changeStatus = async (student: AttendanceRow, status: string) => {
+  const changeStatus = (student: AttendanceRow, status: string) => {
     if (!activeTahfizId || session?.is_confirmed) return
-    setSavingId(student.id)
+    setStudents((current) => current.map((item) => item.id === student.id ? { ...item, status } : item))
+    setPendingStatuses((current) => {
+      const next = { ...current }
+      if (savedStatusesRef.current[student.id] === status) delete next[student.id]
+      else next[student.id] = status
+      pendingStatusesRef.current = next
+      return next
+    })
+  }
+
+  const saveAttendance = async () => {
+    if (!activeTahfizId || session?.is_confirmed || savingAttendance) return
+    const changes = Object.entries(pendingStatusesRef.current)
+    if (!changes.length) return
+    setSavingAttendance(true)
     try {
-      const previousStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
-      await queueAttendance(
-        db, await getDeviceId(), activeTahfizId, sessionId, student.id,
-        status, student.notes, student.sheikh_id,
-      )
+      const deviceId = await getDeviceId()
+      const previousStreaks = new Map<number, number>()
+      await Promise.all(changes.map(async ([studentId]) => {
+        const id = Number(studentId)
+        previousStreaks.set(id, await attendanceStatusStreak(db, activeTahfizId, id))
+      }))
+      for (const [studentId, status] of changes) {
+        const student = students.find((item) => item.id === Number(studentId))
+        if (!student) continue
+        await queueAttendance(
+          db, deviceId, activeTahfizId, sessionId, student.id,
+          status, student.notes, student.sheikh_id,
+        )
+      }
+      pendingStatusesRef.current = {}
+      setPendingStatuses({})
       await load()
-      const currentStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
-      if (thresholdEnabled && previousStreak <= thresholdLimit && currentStreak > thresholdLimit) {
-        setThresholdAlert({ student, streak: currentStreak })
-        setTimeout(() => setThresholdAlert(current => current?.student.id === student.id && current.streak === currentStreak ? null : current), 8000)
+      for (const [studentId] of changes) {
+        const student = students.find((item) => item.id === Number(studentId))
+        if (!student) continue
+        const currentStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
+        if (thresholdEnabled && (previousStreaks.get(student.id) ?? 0) <= thresholdLimit && currentStreak > thresholdLimit) {
+          setThresholdAlert({ student, streak: currentStreak })
+          setTimeout(() => setThresholdAlert(current => current?.student.id === student.id && current.streak === currentStreak ? null : current), 8000)
+        }
+      }
+      try {
+        await syncNow(false)
+        await load()
+        Alert.alert('تم الحفظ', 'حُفظت تغييرات الحضور وتمت مزامنتها.')
+      } catch {
+        Alert.alert('تم الحفظ على الجهاز', 'سيتم إرسال التغييرات عند توفر الاتصال.')
       }
     } catch (error) {
       Alert.alert('تعذر الحفظ', error instanceof Error ? error.message : 'حاول مرة أخرى')
     } finally {
-      setSavingId(null)
+      setSavingAttendance(false)
     }
   }
 
+  const pendingStatusCount = Object.keys(pendingStatuses).length
   const confirm = async () => {
     if (!activeTahfizId || !session || !admin) return
     Alert.alert(
@@ -213,7 +257,7 @@ export default function SessionScreen() {
       <FlatList
         data={filteredStudents}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={commonStyles.content}
+        contentContainerStyle={[commonStyles.content, { paddingBottom: session.is_confirmed ? 20 : 118 }]}
         ListHeaderComponent={
           <View style={{ gap: 10, marginBottom: 10 }}>
           <View style={[styles.summary, { marginBottom: 0 }]}>
@@ -244,7 +288,7 @@ export default function SessionScreen() {
               <Text style={styles.navButtonText}>›</Text>
             </TouchableOpacity>
             <Text style={[styles.state, { color: session.is_confirmed ? colors.muted : colors.success }]}>
-              {session.is_confirmed ? 'مؤكدة' : 'محفوظة محلياً'}
+              {session.is_confirmed ? 'مؤكدة' : pendingStatusCount ? 'تغييرات غير محفوظة' : 'محفوظة محلياً'}
             </Text>
           </View>
           {progressEnabled && present > 0 && !session.is_confirmed ? (
@@ -259,23 +303,6 @@ export default function SessionScreen() {
             placeholderTextColor={colors.muted}
             style={[commonStyles.input, styles.searchInput]}
           />
-          {!session.is_confirmed ? (
-            <TouchableOpacity
-              disabled={syncing}
-              style={commonStyles.button}
-              onPress={async () => {
-                try {
-                  await syncNow(false)
-                  await load()
-                  Alert.alert('تم الحفظ', 'حُفظت التغييرات على الجهاز وتمت مزامنتها.')
-                } catch (error) {
-                  Alert.alert('محفوظة على الجهاز', error instanceof Error ? error.message : 'ستتم المزامنة عند توفر الاتصال.')
-                }
-              }}
-            >
-              {syncing ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ ومزامنة التغييرات</Text>}
-            </TouchableOpacity>
-          ) : null}
           </View>
         }
         renderItem={({ item }) => (
@@ -292,7 +319,7 @@ export default function SessionScreen() {
                 <Text style={styles.studentName}>{item.name}</Text>
                 {item.dirty ? <Text style={styles.pending}>بانتظار المزامنة</Text> : null}
               </TouchableOpacity>
-              {savingId === item.id ? <ActivityIndicator color={colors.primary} /> : null}
+              {pendingStatuses[item.id] ? <Text style={styles.unsavedStudent}>غير محفوظ</Text> : null}
             </View>
             <View style={[styles.splitStatus, { borderColor: statusPalette(statusColors[item.status], isDark).border, backgroundColor: statusPalette(statusColors[item.status], isDark).background }]}>
               <TouchableOpacity
@@ -300,11 +327,11 @@ export default function SessionScreen() {
                 onPress={() => {
                   const index = statuses.indexOf(item.status)
                   const next = statuses[(index + 1 + statuses.length) % statuses.length]
-                  void changeStatus(item, next)
+                  changeStatus(item, next)
                 }}
                 style={styles.cycleStatus}
               >
-                <Text style={[styles.cycleStatusText, { color: statusPalette(statusColors[item.status], isDark).text }]}>{item.status}{savingId === item.id ? '…' : ''}</Text>
+                <Text style={[styles.cycleStatusText, { color: statusPalette(statusColors[item.status], isDark).text }]}>{item.status}</Text>
               </TouchableOpacity>
               <TouchableOpacity disabled={Boolean(session.is_confirmed)} onPress={() => setStatusMenuStudent(item)} style={[styles.statusArrow, { borderRightColor: statusPalette(statusColors[item.status], isDark).border }]}>
                 <Text style={[styles.statusArrowText, { color: statusPalette(statusColors[item.status], isDark).text }]}>⌄</Text>
@@ -371,7 +398,7 @@ export default function SessionScreen() {
                   onPress={() => {
                     const student = statusMenuStudent
                     setStatusMenuStudent(null)
-                    if (student && student.status !== status) void changeStatus(student, status)
+                    if (student && student.status !== status) changeStatus(student, status)
                   }}
                 >
                   <Text style={[styles.statusMenuOptionText, { color: palette.text }]}>{statusMenuStudent?.status === status ? '✓  ' : ''}{status}</Text>
@@ -406,6 +433,24 @@ export default function SessionScreen() {
         onClose={() => setBulkProgressOpen(false)}
         onSaved={load}
       />
+      {!session.is_confirmed ? (
+        <View style={styles.saveBar}>
+          <Text style={[styles.saveHint, pendingStatusCount ? styles.saveHintActive : null]}>
+            {pendingStatusCount
+              ? `لديك ${pendingStatusCount} تغييرات حضور غير محفوظة`
+              : 'غيّر حالات الحضور ثم اضغط حفظ'}
+          </Text>
+          <TouchableOpacity
+            disabled={!pendingStatusCount || savingAttendance}
+            style={[commonStyles.button, styles.saveButton, (!pendingStatusCount || savingAttendance) && styles.saveButtonDisabled]}
+            onPress={() => void saveAttendance()}
+          >
+            {savingAttendance
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={commonStyles.buttonText}>{pendingStatusCount ? `حفظ تغييرات الحضور (${pendingStatusCount})` : 'لا توجد تغييرات للحفظ'}</Text>}
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -800,6 +845,7 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   studentName: { color: colors.text, fontWeight: '900', fontSize: 17, textAlign: 'right' },
   searchInput: { marginTop: 2 },
   pending: { color: colors.warning, fontSize: 11, textAlign: 'right' },
+  unsavedStudent: { color: colors.warning, fontSize: 11, fontWeight: '900' },
   statuses: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 },
   status: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8 },
   statusSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -825,6 +871,15 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   progressButtonText: { color: colors.primaryDark, fontWeight: '800' },
   bulkProgressButton: { minHeight: 48, backgroundColor: colors.primarySurface, borderWidth: 1, borderColor: colors.primary, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 10 },
   bulkProgressButtonText: { color: colors.primaryDark, fontWeight: '900', textAlign: 'center' },
+  saveBar: {
+    position: 'absolute', left: 12, right: 12, bottom: 10, padding: 10, gap: 7,
+    borderWidth: 1, borderColor: colors.primary, borderRadius: 16,
+    backgroundColor: colors.surface,
+  },
+  saveHint: { color: colors.muted, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  saveHintActive: { color: colors.warning },
+  saveButton: { minHeight: 50 },
+  saveButtonDisabled: { opacity: 0.5 },
   formRow: { flexDirection: 'row-reverse', gap: 10 },
   half: { flex: 1 },
   rangeChoice: { flex: 1, minHeight: 45, borderWidth: 1, borderColor: colors.border, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

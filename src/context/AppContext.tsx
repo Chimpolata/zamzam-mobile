@@ -80,10 +80,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, locked, activeTahfizId])
 
   const unlock = useCallback(async () => {
+    const refreshLocalData = () => {
+      if (activeTahfizId) void syncTahfiz(db, activeTahfizId).catch(() => undefined)
+    }
     const hardware = await LocalAuthentication.hasHardwareAsync()
     const enrolled = hardware && await LocalAuthentication.isEnrolledAsync()
     if (!enrolled) {
       setLocked(false)
+      refreshLocalData()
       return true
     }
     const result = await LocalAuthentication.authenticateAsync({
@@ -92,9 +96,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       fallbackLabel: 'استخدام رمز الجهاز',
       disableDeviceFallback: false,
     })
-    if (result.success) setLocked(false)
+    if (result.success) {
+      setLocked(false)
+      refreshLocalData()
+    }
     return result.success
-  }, [])
+  }, [db, activeTahfizId])
 
   const syncNow = useCallback(async (allMemberships = false) => {
     if (!user || syncing) return null

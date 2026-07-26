@@ -1,12 +1,12 @@
 import { Stack } from 'expo-router'
 import { SQLiteProvider } from 'expo-sqlite'
 import { StatusBar } from 'expo-status-bar'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AppProvider, useApp } from '../src/context/AppContext'
-import { migrateDatabase } from '../src/db/database'
+import { encryptedDatabaseName, migrateDatabase } from '../src/db/database'
 import { ThemeProvider, useTheme } from '../src/theme'
 
 function LockedGate({ children }: { children: React.ReactNode }) {
@@ -35,17 +35,30 @@ function LockedGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [databaseName, setDatabaseName] = useState<string | null>(null)
+
+  useEffect(() => {
+    void encryptedDatabaseName().then(setDatabaseName)
+  }, [])
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <SQLiteProvider databaseName="zamzam-mobile.db" onInit={migrateDatabase}>
-          <AppProvider>
-            <AppNavigation />
-          </AppProvider>
-        </SQLiteProvider>
+        {databaseName ? (
+          <SQLiteProvider databaseName={databaseName} onInit={migrateDatabase}>
+            <AppProvider>
+              <AppNavigation />
+            </AppProvider>
+          </SQLiteProvider>
+        ) : <DatabaseLoading />}
       </ThemeProvider>
     </SafeAreaProvider>
   )
+}
+
+function DatabaseLoading() {
+  const { colors } = useTheme()
+  return <View style={[baseStyles.loading, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.primary} /></View>
 }
 
 function AppNavigation() {
@@ -91,4 +104,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
     overflow: 'hidden', color: '#fff', backgroundColor: colors.primary, fontSize: 17,
     fontWeight: '800', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16,
   },
+})
+
+const baseStyles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 })

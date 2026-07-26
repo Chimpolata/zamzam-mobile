@@ -27,6 +27,11 @@ async function databaseKey(): Promise<string> {
   return key
 }
 
+export async function encryptedDatabaseName() {
+  const key = await databaseKey()
+  return `zamzam-mobile-${key.slice(0, 16)}.db`
+}
+
 async function newDatabaseKey() {
   const bytes = await Crypto.getRandomBytesAsync(32)
   return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
@@ -176,7 +181,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
 }
 
 export async function openEncryptedDatabase() {
-  const db = await SQLite.openDatabaseAsync('zamzam-mobile.db')
+  const db = await SQLite.openDatabaseAsync(await encryptedDatabaseName())
   await migrateDatabase(db)
   return db
 }
