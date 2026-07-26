@@ -20,7 +20,7 @@ import {
   queueAttendance,
   queueProgress,
   sessionAttendance,
-  excusedAbsenceStreak,
+  attendanceStatusStreak,
 } from '../../src/db/database'
 import { api } from '../../src/lib/api'
 import { getDeviceId } from '../../src/lib/session-store'
@@ -94,6 +94,8 @@ export default function SessionScreen() {
   const [statuses, setStatuses] = useState<string[]>([])
   const [statusColors, setStatusColors] = useState<Record<string, string>>({})
   const [thresholdLimit, setThresholdLimit] = useState(3)
+  const [thresholdEnabled, setThresholdEnabled] = useState(true)
+  const [thresholdStatus, setThresholdStatus] = useState('غياب بعذر')
   const [query, setQuery] = useState('')
   const [statusMenuStudent, setStatusMenuStudent] = useState<AttendanceRow | null>(null)
   const [thresholdAlert, setThresholdAlert] = useState<{ student: AttendanceRow; streak: number } | null>(null)
@@ -114,8 +116,8 @@ export default function SessionScreen() {
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>('SELECT * FROM sessions WHERE id=? AND tahfiz_id=?', sessionId, activeTahfizId),
       sessionAttendance<AttendanceRow>(db, sessionId),
       db.getAllAsync<LocalProgressRow>('SELECT * FROM quran_progress WHERE session_id=? ORDER BY student_id,category', sessionId),
-      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; progress_tracking_enabled: number }>(
-        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,progress_tracking_enabled FROM tahfiz WHERE id=?',
+      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; attendance_streak_alert_enabled: number; attendance_streak_status: string; progress_tracking_enabled: number }>(
+        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,attendance_streak_alert_enabled,attendance_streak_status,progress_tracking_enabled FROM tahfiz WHERE id=?',
         activeTahfizId,
       ),
       db.getAllAsync<{ id: number }>(
@@ -131,6 +133,8 @@ export default function SessionScreen() {
       'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
     })
     setThresholdLimit(tahfiz?.excused_absence_streak_limit ?? 3)
+    setThresholdEnabled(Boolean(tahfiz?.attendance_streak_alert_enabled))
+    setThresholdStatus(tahfiz?.attendance_streak_status || 'غياب بعذر')
     setProgressEnabled(Boolean(tahfiz?.progress_tracking_enabled))
     const currentIndex = sessionRows.findIndex((row) => row.id === sessionId)
     setAdjacent({
@@ -144,14 +148,14 @@ export default function SessionScreen() {
     if (!activeTahfizId || session?.is_confirmed) return
     setSavingId(student.id)
     try {
-      const previousStreak = await excusedAbsenceStreak(db, activeTahfizId, student.id)
+      const previousStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
       await queueAttendance(
         db, await getDeviceId(), activeTahfizId, sessionId, student.id,
         status, student.notes, student.sheikh_id,
       )
       await load()
-      const currentStreak = await excusedAbsenceStreak(db, activeTahfizId, student.id)
-      if (previousStreak <= thresholdLimit && currentStreak > thresholdLimit) {
+      const currentStreak = await attendanceStatusStreak(db, activeTahfizId, student.id)
+      if (thresholdEnabled && previousStreak <= thresholdLimit && currentStreak > thresholdLimit) {
         setThresholdAlert({ student, streak: currentStreak })
         setTimeout(() => setThresholdAlert(current => current?.student.id === student.id && current.streak === currentStreak ? null : current), 8000)
       }
@@ -255,6 +259,23 @@ export default function SessionScreen() {
             placeholderTextColor={colors.muted}
             style={[commonStyles.input, styles.searchInput]}
           />
+          {!session.is_confirmed ? (
+            <TouchableOpacity
+              disabled={syncing}
+              style={commonStyles.button}
+              onPress={async () => {
+                try {
+                  await syncNow(false)
+                  await load()
+                  Alert.alert('تم الحفظ', 'حُفظت التغييرات على الجهاز وتمت مزامنتها.')
+                } catch (error) {
+                  Alert.alert('محفوظة على الجهاز', error instanceof Error ? error.message : 'ستتم المزامنة عند توفر الاتصال.')
+                }
+              }}
+            >
+              {syncing ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>حفظ ومزامنة التغييرات</Text>}
+            </TouchableOpacity>
+          ) : null}
           </View>
         }
         renderItem={({ item }) => (
@@ -366,7 +387,7 @@ export default function SessionScreen() {
           onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(thresholdAlert.student.id), name: thresholdAlert.student.name } })}
         >
           <Text style={styles.thresholdAlertTitle}>{thresholdAlert.student.name}</Text>
-          <Text style={styles.thresholdAlertText}>تجاوز حد الغياب بعذر المتتالي: {thresholdAlert.streak} مرات (الحد {thresholdLimit}). اضغط لفتح الملف.</Text>
+          <Text style={styles.thresholdAlertText}>تجاوز حد «{thresholdStatus}» المتتالي: {thresholdAlert.streak} مرات (الحد {thresholdLimit}). اضغط لفتح الملف.</Text>
         </TouchableOpacity>
       ) : null}
       <AttendanceNotesModal

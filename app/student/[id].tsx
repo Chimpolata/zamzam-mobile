@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { useApp } from '../../src/context/AppContext'
-import { excusedAbsenceStreak } from '../../src/db/database'
+import { attendanceStatusStreak } from '../../src/db/database'
 import { api } from '../../src/lib/api'
 import { mediaUrl } from '../../src/lib/media'
 import { useTheme } from '../../src/theme'
@@ -31,7 +31,7 @@ export default function StudentProfileScreen() {
   const styles = createStyles(colors)
   const [student, setStudent] = useState<LocalStudent | null>(null)
   const [remote, setRemote] = useState<Record<string, any> | null>(null)
-  const [summary, setSummary] = useState({ total: 0, present: 0, absent: 0, excused: 0, streak: 0, limit: 3, progress: 0 })
+  const [summary, setSummary] = useState({ total: 0, present: 0, absent: 0, excused: 0, streak: 0, limit: 3, status: 'غياب بعذر', enabled: true, progress: 0 })
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -52,8 +52,8 @@ export default function StudentProfileScreen() {
         'SELECT COUNT(*) count FROM quran_progress WHERE tahfiz_id=? AND student_id=?',
         activeTahfizId, studentId,
       ),
-      db.getFirstAsync<{ excused_absence_streak_limit: number }>(
-        'SELECT excused_absence_streak_limit FROM tahfiz WHERE id=?',
+      db.getFirstAsync<{ excused_absence_streak_limit: number; attendance_streak_status: string; attendance_streak_alert_enabled: number }>(
+        'SELECT excused_absence_streak_limit,attendance_streak_status,attendance_streak_alert_enabled FROM tahfiz WHERE id=?',
         activeTahfizId,
       ),
     ])
@@ -64,8 +64,10 @@ export default function StudentProfileScreen() {
       present: counts['حاضر'] || 0,
       absent: counts['غياب'] || 0,
       excused: counts['غياب بعذر'] || 0,
-      streak: await excusedAbsenceStreak(db, activeTahfizId, studentId),
+      streak: await attendanceStatusStreak(db, activeTahfizId, studentId),
       limit: settings?.excused_absence_streak_limit ?? 3,
+      status: settings?.attendance_streak_status || 'غياب بعذر',
+      enabled: Boolean(settings?.attendance_streak_alert_enabled),
       progress: progressRow?.count ?? 0,
     })
     try {
@@ -107,10 +109,10 @@ export default function StudentProfileScreen() {
           <Stat label="بعذر" value={summary.excused} />
         </View>
 
-        <View style={[commonStyles.card, summary.streak > summary.limit && styles.warningCard]}>
-          <Text style={styles.sectionTitle}>سلسلة الغياب بعذر الحالية: {summary.streak}</Text>
+        {summary.enabled ? <View style={[commonStyles.card, summary.streak > summary.limit && styles.warningCard]}>
+          <Text style={styles.sectionTitle}>سلسلة «{summary.status}» الحالية: {summary.streak}</Text>
           <Text style={commonStyles.subtitle}>حد التنبيه: أكثر من {summary.limit}</Text>
-        </View>
+        </View> : null}
 
         <View style={commonStyles.card}>
           <Text style={styles.sectionTitle}>البيانات الأساسية</Text>

@@ -14,7 +14,7 @@ import type {
 } from '../types'
 
 const DB_KEY_NAME = 'zamzam.db.key.v1'
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 
 async function databaseKey(): Promise<string> {
   const existing = await SecureStore.getItemAsync(DB_KEY_NAME)
@@ -50,6 +50,8 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       attendance_status_colors TEXT NOT NULL DEFAULT '{}',
       excused_absence_streak_limit INTEGER NOT NULL DEFAULT 3,
       excused_absence_reset_statuses TEXT NOT NULL DEFAULT '["حاضر"]',
+      attendance_streak_alert_enabled INTEGER NOT NULL DEFAULT 1,
+      attendance_streak_status TEXT NOT NULL DEFAULT 'غياب بعذر',
       progress_tracking_enabled INTEGER NOT NULL DEFAULT 0,
       week_start_day INTEGER NOT NULL DEFAULT 6,
       month_start_day INTEGER NOT NULL DEFAULT 1,
@@ -160,6 +162,12 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   if (!tahfizColumns.has('excused_absence_reset_statuses')) {
     await db.execAsync(`ALTER TABLE tahfiz ADD COLUMN excused_absence_reset_statuses TEXT NOT NULL DEFAULT '["حاضر"]'`)
   }
+  if (!tahfizColumns.has('attendance_streak_alert_enabled')) {
+    await db.execAsync('ALTER TABLE tahfiz ADD COLUMN attendance_streak_alert_enabled INTEGER NOT NULL DEFAULT 1')
+  }
+  if (!tahfizColumns.has('attendance_streak_status')) {
+    await db.execAsync(`ALTER TABLE tahfiz ADD COLUMN attendance_streak_status TEXT NOT NULL DEFAULT 'غياب بعذر'`)
+  }
   const studentColumns = new Set((await db.getAllAsync<{ name: string }>('PRAGMA table_info(students)')).map(column => column.name))
   if (!studentColumns.has('student_code')) await db.execAsync('ALTER TABLE students ADD COLUMN student_code TEXT')
   if (!studentColumns.has('birthday')) await db.execAsync('ALTER TABLE students ADD COLUMN birthday TEXT')
@@ -177,13 +185,15 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.runAsync(
       `INSERT INTO tahfiz
-       (id, name, attendance_statuses, attendance_status_colors, excused_absence_streak_limit, excused_absence_reset_statuses, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, name, attendance_statuses, attendance_status_colors, excused_absence_streak_limit, excused_absence_reset_statuses, attendance_streak_alert_enabled, attendance_streak_status, progress_tracking_enabled, week_start_day, month_start_day, cursor, last_synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name, attendance_statuses=excluded.attendance_statuses,
          attendance_status_colors=excluded.attendance_status_colors,
          excused_absence_streak_limit=excluded.excused_absence_streak_limit,
          excused_absence_reset_statuses=excluded.excused_absence_reset_statuses,
+         attendance_streak_alert_enabled=excluded.attendance_streak_alert_enabled,
+         attendance_streak_status=excluded.attendance_streak_status,
          progress_tracking_enabled=excluded.progress_tracking_enabled,
          week_start_day=excluded.week_start_day, month_start_day=excluded.month_start_day,
          cursor=excluded.cursor, last_synced_at=excluded.last_synced_at`,
@@ -191,8 +201,10 @@ export async function applyBootstrap(db: SQLiteDatabase, data: Bootstrap) {
       data.tahfiz.name,
       JSON.stringify(data.tahfiz.attendance_statuses),
       JSON.stringify(data.tahfiz.attendance_status_colors),
-      data.tahfiz.excused_absence_streak_limit,
-      JSON.stringify(data.tahfiz.excused_absence_reset_statuses),
+      data.tahfiz.attendance_streak_limit ?? data.tahfiz.excused_absence_streak_limit,
+      JSON.stringify(data.tahfiz.attendance_streak_reset_statuses ?? data.tahfiz.excused_absence_reset_statuses),
+      data.tahfiz.attendance_streak_alert_enabled ? 1 : 0,
+      data.tahfiz.attendance_streak_status,
       data.tahfiz.progress_tracking_enabled ? 1 : 0,
       data.tahfiz.week_start_day,
       data.tahfiz.month_start_day,
@@ -314,12 +326,13 @@ async function upsertStudent(db: SQLiteDatabase, row: Student) {
   )
 }
 
-export async function excusedAbsenceStreak(db: SQLiteDatabase, tahfizId: number, studentId: number) {
-  const settings = await db.getFirstAsync<{ excused_absence_reset_statuses: string }>(
-    'SELECT excused_absence_reset_statuses FROM tahfiz WHERE id=?',
+export async function attendanceStatusStreak(db: SQLiteDatabase, tahfizId: number, studentId: number) {
+  const settings = await db.getFirstAsync<{ excused_absence_reset_statuses: string; attendance_streak_status: string }>(
+    'SELECT excused_absence_reset_statuses,attendance_streak_status FROM tahfiz WHERE id=?',
     tahfizId,
   )
   const resetStatuses = new Set<string>(settings ? JSON.parse(settings.excused_absence_reset_statuses) : ['حاضر'])
+  const trackedStatus = settings?.attendance_streak_status || 'غياب بعذر'
   const rows = await db.getAllAsync<{ status: string }>(
     `SELECT a.status FROM attendance a
      JOIN sessions s ON s.id=a.session_id
@@ -329,7 +342,7 @@ export async function excusedAbsenceStreak(db: SQLiteDatabase, tahfizId: number,
   )
   let streak = 0
   for (const row of rows) {
-    if (row.status === 'غياب بعذر') streak += 1
+    if (row.status === trackedStatus) streak += 1
     else if (resetStatuses.has(row.status)) break
   }
   return streak

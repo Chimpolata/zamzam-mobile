@@ -48,6 +48,11 @@ export interface User {
     attendance_status_colors: Record<string, string>
     excused_absence_streak_limit: number
     excused_absence_reset_statuses: string[]
+    attendance_streak_alert_enabled: boolean
+    attendance_streak_status: string
+    attendance_streak_limit: number
+    attendance_streak_reset_statuses: string[]
+    whatsend_enabled: boolean
     progress_tracking_enabled: boolean
   } | null
 }
@@ -132,6 +137,10 @@ export interface Bootstrap {
     attendance_status_colors: Record<string, string>
     excused_absence_streak_limit: number
     excused_absence_reset_statuses: string[]
+    attendance_streak_alert_enabled: boolean
+    attendance_streak_status: string
+    attendance_streak_limit: number
+    attendance_streak_reset_statuses: string[]
     progress_tracking_enabled: boolean
     week_start_day: number
     month_start_day: number

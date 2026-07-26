@@ -258,8 +258,10 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'week_start_day', label: 'بداية الأسبوع ٠-٦', keyboard: 'number-pad' },
     { key: 'month_start_day', label: 'بداية الشهر ١-٢٨', keyboard: 'number-pad' },
     { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة' },
-    { key: 'excused_absence_streak_limit', label: 'حد الغياب بعذر المتتالي', keyboard: 'number-pad' },
+    { key: 'attendance_streak_alert_enabled', label: 'تنبيه تكرار حالة حضور متتالية', boolean: true },
+    { key: 'attendance_streak_limit', label: 'حد تكرار الحالة المتتالية', keyboard: 'number-pad' },
     { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true },
+    { key: 'whatsend_enabled', label: 'تفعيل تكامل WhatSend', boolean: true },
     { key: 'whatsend_api_url', label: 'رابط WhatsEnd API' },
     { key: 'whatsend_groups_url', label: 'رابط مجموعات WhatsEnd' },
     { key: 'whatsend_api_key', label: 'مفتاح WhatsEnd (اتركه فارغاً للاحتفاظ بالحالي)', secure: true },
@@ -304,7 +306,11 @@ function RecordEditor({
       next.attendance_status_colors = item?.attendance_status_colors ?? {
         'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
       }
-      next.excused_absence_reset_statuses = item?.excused_absence_reset_statuses ?? ['حاضر']
+      next.excused_absence_reset_statuses = item?.attendance_streak_reset_statuses ?? item?.excused_absence_reset_statuses ?? ['حاضر']
+      next.attendance_streak_status = item?.attendance_streak_status ?? 'غياب بعذر'
+      next.attendance_streak_limit = item?.attendance_streak_limit ?? item?.excused_absence_streak_limit ?? 3
+      next.attendance_streak_alert_enabled = item?.attendance_streak_alert_enabled ?? true
+      next.whatsend_enabled = item?.whatsend_enabled ?? true
     }
     setValues(next)
   }, [item, screen])
@@ -329,6 +335,8 @@ function RecordEditor({
     if (screen === 'settings') {
       body.attendance_status_colors = values.attendance_status_colors ?? {}
       body.excused_absence_reset_statuses = values.excused_absence_reset_statuses ?? []
+      body.attendance_streak_reset_statuses = values.excused_absence_reset_statuses ?? []
+      body.attendance_streak_status = values.attendance_streak_status
     }
     if (screen === 'students') {
       const editedParents = [1, 2, 3].map((index) => ({
@@ -434,11 +442,13 @@ function RecordEditor({
             value={String(values.attendance_statuses ?? '')}
             colors={values.attendance_status_colors ?? {}}
             resetStatuses={values.excused_absence_reset_statuses ?? []}
-            onChange={(attendanceStatuses, attendanceColors, resetStatuses) => setValues(current => ({
+            trackedStatus={values.attendance_streak_status ?? 'غياب بعذر'}
+            onChange={(attendanceStatuses, attendanceColors, resetStatuses, trackedStatus) => setValues(current => ({
               ...current,
               attendance_statuses: attendanceStatuses.join('، '),
               attendance_status_colors: attendanceColors,
               excused_absence_reset_statuses: resetStatuses,
+              attendance_streak_status: trackedStatus,
             }))}
           />
         ) : field.boolean ? (
@@ -481,12 +491,14 @@ function StatusSettingsEditor({
   value,
   colors,
   resetStatuses,
+  trackedStatus,
   onChange,
 }: {
   value: string
   colors: Record<string, string>
   resetStatuses: string[]
-  onChange(statuses: string[], colors: Record<string, string>, resetStatuses: string[]): void
+  trackedStatus: string
+  onChange(statuses: string[], colors: Record<string, string>, resetStatuses: string[], trackedStatus: string): void
 }) {
   const { colors: themeColors, commonStyles } = useTheme()
   const styles = createStyles(themeColors, commonStyles)
@@ -495,7 +507,7 @@ function StatusSettingsEditor({
 
   const updateStatuses = (next: string[]) => {
     const nextColors = Object.fromEntries(next.map(status => [status, colors[status] || 'violet']))
-    onChange(next, nextColors, resetStatuses.filter(status => next.includes(status)))
+    onChange(next, nextColors, resetStatuses.filter(status => next.includes(status)), next.includes(trackedStatus) ? trackedStatus : next[0])
   }
 
   return (
@@ -510,7 +522,7 @@ function StatusSettingsEditor({
                 key={key}
                 accessibilityLabel={`اختيار لون ${key} لحالة ${status}`}
                 accessibilityState={{ selected: (colors[status] || 'violet') === key }}
-                onPress={() => onChange(statuses, { ...colors, [status]: key }, resetStatuses)}
+                onPress={() => onChange(statuses, { ...colors, [status]: key }, resetStatuses, trackedStatus)}
                 style={[styles.statusColor, { backgroundColor: color }, (colors[status] || 'violet') === key && styles.statusColorSelected]}
               />
             ))}
@@ -528,12 +540,18 @@ function StatusSettingsEditor({
             }} style={[styles.smallStatusButton, index === statuses.length - 1 && { opacity: 0.3 }]}><Text style={styles.smallStatusButtonText}>↓</Text></TouchableOpacity>
             <TouchableOpacity disabled={statuses.length === 1} onPress={() => updateStatuses(statuses.filter(item => item !== status))} style={styles.smallStatusButton}><Text style={[styles.smallStatusButtonText, { color: themeColors.danger }]}>حذف</Text></TouchableOpacity>
           </View>
-          {status !== 'غياب بعذر' ? (
+          <TouchableOpacity
+            onPress={() => onChange(statuses, colors, resetStatuses.filter(item => item !== status), status)}
+            style={[styles.resetStatusToggle, trackedStatus === status && styles.resetStatusToggleActive]}
+          >
+            <Text style={styles.resetStatusToggleText}>{trackedStatus === status ? '✓ الحالة التي يتم عدّها' : 'استخدمها لعداد التنبيه'}</Text>
+          </TouchableOpacity>
+          {status !== trackedStatus ? (
             <TouchableOpacity
-              onPress={() => onChange(statuses, colors, resetStatuses.includes(status) ? resetStatuses.filter(item => item !== status) : [...resetStatuses, status])}
+              onPress={() => onChange(statuses, colors, resetStatuses.includes(status) ? resetStatuses.filter(item => item !== status) : [...resetStatuses, status], trackedStatus)}
               style={[styles.resetStatusToggle, resetStatuses.includes(status) && styles.resetStatusToggleActive]}
             >
-              <Text style={styles.resetStatusToggleText}>{resetStatuses.includes(status) ? '✓ يصفّر عداد الغياب بعذر' : 'لا يصفّر العداد'}</Text>
+              <Text style={styles.resetStatusToggleText}>{resetStatuses.includes(status) ? '✓ يصفّر عداد الحالة' : 'لا يصفّر العداد'}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -544,7 +562,7 @@ function StatusSettingsEditor({
           const status = newStatus.trim()
           if (!status || statuses.includes(status)) return
           setNewStatus('')
-          onChange([...statuses, status], { ...colors, [status]: 'violet' }, resetStatuses)
+          onChange([...statuses, status], { ...colors, [status]: 'violet' }, resetStatuses, trackedStatus)
         }} style={styles.addStatusButton}><Text style={styles.addStatusButtonText}>إضافة</Text></TouchableOpacity>
       </View>
     </View>

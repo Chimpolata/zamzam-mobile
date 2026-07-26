@@ -17,15 +17,33 @@ export default function DashboardScreen() {
   const [counts, setCounts] = useState({ sessions: 0, students: 0, pending: 0, conflicts: 0 })
   const [online, setOnline] = useState<boolean | null>(null)
   const [openSession, setOpenSession] = useState<(Omit<Session, 'is_confirmed'> & { is_confirmed: number }) | null>(null)
+  const [error, setError] = useState('')
   const membership = user?.memberships.find((item) => item.tahfiz_id === activeTahfizId)
 
   const load = useCallback(async () => {
-    if (!activeTahfizId) return
-    const [sessions, students, pending, conflicts, network, nextOpen] = await Promise.all([
-      db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM sessions WHERE tahfiz_id=?', activeTahfizId),
-      db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM students WHERE tahfiz_id=?', activeTahfizId),
-      db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM outbox WHERE tahfiz_id=?', activeTahfizId),
-      db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM conflicts WHERE tahfiz_id=?', activeTahfizId),
+    if (!activeTahfizId) {
+      setError('لم يتم اختيار حساب تحفيظ نشط.')
+      return
+    }
+    setError('')
+    try {
+      const [sessions, students, pending, conflicts] = await Promise.all([
+        db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM sessions WHERE tahfiz_id=?', activeTahfizId),
+        db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM students WHERE tahfiz_id=?', activeTahfizId),
+        db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM outbox WHERE tahfiz_id=?', activeTahfizId),
+        db.getFirstAsync<{ count: number }>('SELECT COUNT(*) count FROM conflicts WHERE tahfiz_id=?', activeTahfizId),
+      ])
+      setCounts({
+        sessions: sessions?.count ?? 0,
+        students: students?.count ?? 0,
+        pending: pending?.count ?? 0,
+        conflicts: conflicts?.count ?? 0,
+      })
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'تعذر قراءة بيانات الرئيسية المحفوظة.')
+    }
+
+    const [networkResult, openSessionResult] = await Promise.allSettled([
       Network.getNetworkStateAsync(),
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>(
         `SELECT * FROM sessions
@@ -37,20 +55,22 @@ export default function DashboardScreen() {
         activeTahfizId,
       ),
     ])
-    setCounts({
-      sessions: sessions?.count ?? 0,
-      students: students?.count ?? 0,
-      pending: pending?.count ?? 0,
-      conflicts: conflicts?.count ?? 0,
-    })
-    setOnline(Boolean(network.isConnected))
-    setOpenSession(nextOpen)
+    setOnline(networkResult.status === 'fulfilled' && Boolean(networkResult.value.isConnected))
+    setOpenSession(openSessionResult.status === 'fulfilled' ? openSessionResult.value : null)
   }, [db, activeTahfizId])
 
   useFocusEffect(useCallback(() => { void load() }, [load]))
 
   const refresh = async () => {
-    try { await syncNow(false) } finally { await load() }
+    let syncError = ''
+    try {
+      await syncNow(false)
+    } catch (reason) {
+      syncError = reason instanceof Error ? reason.message : 'تعذرت المزامنة.'
+    } finally {
+      await load()
+      if (syncError) setError(syncError)
+    }
   }
 
   return (
@@ -84,6 +104,12 @@ export default function DashboardScreen() {
       <TouchableOpacity style={commonStyles.button} onPress={() => void refresh()} disabled={syncing}>
         {syncing ? <ActivityIndicator color="#fff" /> : <Text style={commonStyles.buttonText}>مزامنة الآن</Text>}
       </TouchableOpacity>
+      {error ? (
+        <TouchableOpacity style={styles.errorCard} onPress={() => void load()}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.retryText}>اضغط لإعادة المحاولة</Text>
+        </TouchableOpacity>
+      ) : null}
       {lastSync ? (
         <Text style={commonStyles.subtitle}>
           آخر مزامنة: دُفع {lastSync.pushed} تعديل، {lastSync.conflicts} تعارض
@@ -130,4 +156,7 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors'], commonStyle
   primaryCard: { ...commonStyles.card, backgroundColor: colors.primarySurface, borderColor: colors.primary, gap: 8 },
   primaryTitle: { fontSize: 19, fontWeight: '900', color: colors.primaryDark, textAlign: 'right' },
   primaryText: { color: colors.text, lineHeight: 22, textAlign: 'right' },
+  errorCard: { ...commonStyles.card, borderColor: colors.danger, backgroundColor: colors.dangerSurface, gap: 4 },
+  errorText: { color: colors.danger, textAlign: 'right', fontWeight: '800' },
+  retryText: { color: colors.text, textAlign: 'right', fontSize: 11 },
 })
