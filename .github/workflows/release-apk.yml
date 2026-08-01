@@ -1,4 +1,5 @@
 name: Release Android APK
+run-name: Release Android APK from ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -97,4 +98,3 @@ jobs:
               --title "Zamzam Android $RELEASE_TAG" \
               --generate-notes
           fi
-
