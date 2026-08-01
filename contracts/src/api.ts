@@ -55,6 +55,23 @@ export interface paths {
         patch: operations["update_attendance_attendance__attendance_id__patch"];
         trace?: never;
     };
+    "/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Audit Logs */
+        get: operations["list_audit_logs_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/default-tahfiz": {
         parameters: {
             query?: never;
@@ -1678,6 +1695,48 @@ export interface components {
             /** Updates */
             updates: components["schemas"]["AttendanceBatchItem"][];
         };
+        /** AuditLogActorOut */
+        AuditLogActorOut: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+        };
+        /** AuditLogItemOut */
+        AuditLogItemOut: {
+            /** Action */
+            action: string;
+            /** Actor User Id */
+            actor_user_id: number;
+            /** Actor Username */
+            actor_username: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Details */
+            details: string | null;
+            /** Id */
+            id: number;
+        };
+        /** AuditLogPageOut */
+        AuditLogPageOut: {
+            /** Actions */
+            actions: string[];
+            /** Actors */
+            actors: components["schemas"]["AuditLogActorOut"][];
+            /** Items */
+            items: components["schemas"]["AuditLogItemOut"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Pages */
+            pages: number;
+            /** Total */
+            total: number;
+        };
         /** Body_upload_student_pic_students__student_id__upload_pic_post */
         Body_upload_student_pic_students__student_id__upload_pic_post: {
             /** File */
@@ -2447,6 +2506,12 @@ export interface components {
             progress_tracking_enabled?: boolean | null;
             /** Restrict Sheikh Student Access */
             restrict_sheikh_student_access?: boolean | null;
+            /** Subscription Currency */
+            subscription_currency?: string | null;
+            /** Subscription Default Fee Minor */
+            subscription_default_fee_minor?: number | null;
+            /** Subscriptions Enabled */
+            subscriptions_enabled?: boolean | null;
             /** Week Start Day */
             week_start_day?: number | null;
             /** Whatsend Api Key */
@@ -2612,6 +2677,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_logs_audit_logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                action?: string | null;
+                actor_user_id?: number | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                query?: string | null;
+            };
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPageOut"];
                 };
             };
             /** @description Validation Error */
