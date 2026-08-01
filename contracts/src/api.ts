@@ -1258,6 +1258,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subscriptions/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Records */
+        get: operations["export_records_subscriptions_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Months */
+        get: operations["list_months_subscriptions_months_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/months/bulk-mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Mark Paid */
+        post: operations["bulk_mark_paid_subscriptions_months_bulk_mark_paid_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/months/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Month Amount */
+        patch: operations["update_month_amount_subscriptions_months__record_id__patch"];
+        trace?: never;
+    };
+    "/subscriptions/months/{record_id}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Paid */
+        post: operations["mark_paid_subscriptions_months__record_id__mark_paid_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/months/{record_id}/mark-unpaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Unpaid */
+        post: operations["mark_unpaid_subscriptions_months__record_id__mark_unpaid_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/months/{record_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Receipt */
+        get: operations["get_receipt_subscriptions_months__record_id__receipt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_subscriptions_settings_get"];
+        /** Update Settings */
+        put: operations["update_settings_subscriptions_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/students/{student_id}/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Student Current */
+        get: operations["student_current_subscriptions_students__student_id__current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/students/{student_id}/fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Student Fee */
+        put: operations["update_student_fee_subscriptions_students__student_id__fee_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sync/v1/bootstrap": {
         parameters: {
             query?: never;
@@ -1511,6 +1682,23 @@ export interface components {
         Body_upload_student_pic_students__student_id__upload_pic_post: {
             /** File */
             file: string;
+        };
+        /** BulkSubscriptionPaymentRequest */
+        BulkSubscriptionPaymentRequest: {
+            /**
+             * Payment Date
+             * Format: date
+             */
+            payment_date: string;
+            /**
+             * Payment Method
+             * @enum {string}
+             */
+            payment_method: "cash" | "bank_transfer" | "mobile_wallet" | "other";
+            /** Payment Note */
+            payment_note?: string | null;
+            /** Record Ids */
+            record_ids: number[];
         };
         /** ConfirmSessionRequest */
         ConfirmSessionRequest: {
@@ -2016,6 +2204,47 @@ export interface components {
             tahfiz_name: string;
             /** Username */
             username: string;
+        };
+        /** StudentSubscriptionOverrideRequest */
+        StudentSubscriptionOverrideRequest: {
+            /** Monthly Fee Minor */
+            monthly_fee_minor?: number | null;
+        };
+        /** SubscriptionAmountRequest */
+        SubscriptionAmountRequest: {
+            /** Fee Minor */
+            fee_minor: number;
+            /** Future Monthly Fee Minor */
+            future_monthly_fee_minor?: number | null;
+            /**
+             * Update Future
+             * @default false
+             */
+            update_future: boolean;
+        };
+        /** SubscriptionPaymentRequest */
+        SubscriptionPaymentRequest: {
+            /**
+             * Payment Date
+             * Format: date
+             */
+            payment_date: string;
+            /**
+             * Payment Method
+             * @enum {string}
+             */
+            payment_method: "cash" | "bank_transfer" | "mobile_wallet" | "other";
+            /** Payment Note */
+            payment_note?: string | null;
+        };
+        /** SubscriptionSettingsRequest */
+        SubscriptionSettingsRequest: {
+            /** Currency */
+            currency?: string | null;
+            /** Default Monthly Fee Minor */
+            default_monthly_fee_minor?: number | null;
+            /** Enabled */
+            enabled?: boolean | null;
         };
         /** SyncMutation */
         SyncMutation: {
@@ -5161,6 +5390,393 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SendStudentWarningRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_records_subscriptions_export_get: {
+        parameters: {
+            query?: {
+                period?: string | null;
+                paid?: boolean | null;
+                sheikh_id?: number | null;
+                student_id?: number | null;
+                search?: string | null;
+            };
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_months_subscriptions_months_get: {
+        parameters: {
+            query?: {
+                period?: string | null;
+                paid?: boolean | null;
+                sheikh_id?: number | null;
+                student_id?: number | null;
+                search?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_mark_paid_subscriptions_months_bulk_mark_paid_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkSubscriptionPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_month_amount_subscriptions_months__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionAmountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_paid_subscriptions_months__record_id__mark_paid_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_unpaid_subscriptions_months__record_id__mark_unpaid_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_subscriptions_months__record_id__receipt_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_subscriptions_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_settings_subscriptions_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    student_current_subscriptions_students__student_id__current_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_student_fee_subscriptions_students__student_id__fee_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentSubscriptionOverrideRequest"];
             };
         };
         responses: {
