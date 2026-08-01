@@ -645,6 +645,53 @@
         "title": "CreateWarningRequest",
         "type": "object"
       },
+      "DeleteSheikhRequest": {
+        "properties": {
+          "student_resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteSheikhStudentResolution"
+            },
+            "maxItems": 1000,
+            "title": "Student Resolutions",
+            "type": "array"
+          }
+        },
+        "title": "DeleteSheikhRequest",
+        "type": "object"
+      },
+      "DeleteSheikhStudentResolution": {
+        "properties": {
+          "action": {
+            "enum": [
+              "reassign",
+              "delete"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "sheikh_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheikh Id"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "student_id",
+          "action"
+        ],
+        "title": "DeleteSheikhStudentResolution",
+        "type": "object"
+      },
       "EarlyReturnRequest": {
         "properties": {
           "end_date": {
@@ -6114,6 +6161,138 @@
           }
         ],
         "summary": "Update Sheikh",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/sheikhs/{sheikh_id}/delete": {
+      "post": {
+        "operationId": "delete_sheikh_with_student_resolutions_sheikhs__sheikh_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheikh_id",
+            "required": true,
+            "schema": {
+              "title": "Sheikh Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteSheikhRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Sheikh With Student Resolutions",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/sheikhs/{sheikh_id}/deletion-preview": {
+      "get": {
+        "operationId": "sheikh_deletion_preview_sheikhs__sheikh_id__deletion_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheikh_id",
+            "required": true,
+            "schema": {
+              "title": "Sheikh Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sheikh Deletion Preview",
         "tags": [
           "management"
         ]

@@ -914,6 +914,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sheikhs/{sheikh_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Sheikh With Student Resolutions */
+        post: operations["delete_sheikh_with_student_resolutions_sheikhs__sheikh_id__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sheikhs/{sheikh_id}/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sheikh Deletion Preview */
+        get: operations["sheikh_deletion_preview_sheikhs__sheikh_id__deletion_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sheikhs/{sheikh_id}/students": {
         parameters: {
             query?: never;
@@ -1647,6 +1681,23 @@ export interface components {
         CreateWarningRequest: {
             /** Reason */
             reason: string;
+        };
+        /** DeleteSheikhRequest */
+        DeleteSheikhRequest: {
+            /** Student Resolutions */
+            student_resolutions?: components["schemas"]["DeleteSheikhStudentResolution"][];
+        };
+        /** DeleteSheikhStudentResolution */
+        DeleteSheikhStudentResolution: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reassign" | "delete";
+            /** Sheikh Id */
+            sheikh_id?: number | null;
+            /** Student Id */
+            student_id: number;
         };
         /** EarlyReturnRequest */
         EarlyReturnRequest: {
@@ -4232,6 +4283,76 @@ export interface operations {
         };
     };
     delete_sheikh_sheikhs__sheikh_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                sheikh_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_sheikh_with_student_resolutions_sheikhs__sheikh_id__delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                sheikh_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteSheikhRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sheikh_deletion_preview_sheikhs__sheikh_id__deletion_preview_get: {
         parameters: {
             query?: never;
             header?: {
