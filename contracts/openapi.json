@@ -27,6 +27,8 @@
             "title": "Sheikh Id"
           },
           "status": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Status",
             "type": "string"
           },
@@ -114,6 +116,33 @@
         "title": "ConfirmSessionRequest",
         "type": "object"
       },
+      "CreateExcusedPeriodRequest": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "reason"
+        ],
+        "title": "CreateExcusedPeriodRequest",
+        "type": "object"
+      },
       "CreateFeedbackRequest": {
         "properties": {
           "category": {
@@ -163,6 +192,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -172,10 +202,21 @@
             "title": "Name"
           },
           "parent_type": {
+            "enum": [
+              "أب",
+              "أم",
+              "أخ",
+              "أخت",
+              "جد",
+              "جدة",
+              "أرضي"
+            ],
             "title": "Parent Type",
             "type": "string"
           },
           "phone_number": {
+            "maxLength": 20,
+            "minLength": 3,
             "title": "Phone Number",
             "type": "string"
           }
@@ -190,10 +231,14 @@
       "CreateSavedFilterRequest": {
         "properties": {
           "data": {
+            "maxLength": 100000,
+            "minLength": 2,
             "title": "Data",
             "type": "string"
           },
           "name": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Name",
             "type": "string"
           }
@@ -220,6 +265,8 @@
           },
           "default_status": {
             "default": "غياب",
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Default Status",
             "type": "string"
           },
@@ -261,12 +308,15 @@
             "title": "Circle Id"
           },
           "name": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Name",
             "type": "string"
           },
           "phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -278,6 +328,7 @@
           "whatsapp_group_id": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -346,6 +397,10 @@
             "title": "Notes"
           },
           "range_type": {
+            "enum": [
+              "surah_ayah",
+              "page"
+            ],
             "title": "Range Type",
             "type": "string"
           },
@@ -421,20 +476,23 @@
             "title": "Birthday"
           },
           "name": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Name",
             "type": "string"
           },
           "parent_phones": {
-            "default": [],
             "items": {
               "$ref": "#/components/schemas/CreateParentPhone"
             },
+            "maxItems": 20,
             "title": "Parent Phones",
             "type": "array"
           },
           "phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -468,12 +526,20 @@
           },
           "status": {
             "default": "مقيد",
+            "enum": [
+              "مقيد",
+              "مستبعد",
+              "منقطع",
+              "ضيف",
+              "غير مقيد"
+            ],
             "title": "Status",
             "type": "string"
           },
           "student_id": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -500,6 +566,10 @@
           },
           "role": {
             "default": "sheikh",
+            "enum": [
+              "admin",
+              "sheikh"
+            ],
             "title": "Role",
             "type": "string"
           },
@@ -521,11 +591,17 @@
       "CreateUserRequest": {
         "properties": {
           "password": {
+            "maxLength": 200,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
           "role": {
             "default": "sheikh",
+            "enum": [
+              "admin",
+              "sheikh"
+            ],
             "title": "Role",
             "type": "string"
           },
@@ -541,6 +617,8 @@
             "title": "Sheikh Id"
           },
           "username": {
+            "maxLength": 50,
+            "minLength": 3,
             "title": "Username",
             "type": "string"
           }
@@ -555,6 +633,8 @@
       "CreateWarningRequest": {
         "properties": {
           "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
             "title": "Reason",
             "type": "string"
           }
@@ -563,6 +643,286 @@
           "reason"
         ],
         "title": "CreateWarningRequest",
+        "type": "object"
+      },
+      "EarlyReturnRequest": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "end_date"
+        ],
+        "title": "EarlyReturnRequest",
+        "type": "object"
+      },
+      "ExcelExportColumnSettings": {
+        "properties": {
+          "custom": {
+            "default": false,
+            "title": "Custom",
+            "type": "boolean"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "show_header": {
+            "default": true,
+            "title": "Show Header",
+            "type": "boolean"
+          },
+          "subcolumns": {
+            "items": {
+              "$ref": "#/components/schemas/ExcelExportSubcolumnSettings"
+            },
+            "maxItems": 10,
+            "title": "Subcolumns",
+            "type": "array"
+          },
+          "width": {
+            "default": 18,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "ExcelExportColumnSettings",
+        "type": "object"
+      },
+      "ExcelExportSubcolumnSettings": {
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "width": {
+            "default": 18,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "ExcelExportSubcolumnSettings",
+        "type": "object"
+      },
+      "ExcelExportTemplateSettings": {
+        "properties": {
+          "attendance_date_format": {
+            "default": "weekday_day_month_year",
+            "enum": [
+              "day",
+              "day_month",
+              "day_month_year",
+              "weekday",
+              "weekday_day",
+              "weekday_day_month",
+              "weekday_day_month_year"
+            ],
+            "title": "Attendance Date Format",
+            "type": "string"
+          },
+          "cell_bold": {
+            "default": false,
+            "title": "Cell Bold",
+            "type": "boolean"
+          },
+          "cell_font_color": {
+            "default": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Cell Font Color",
+            "type": "string"
+          },
+          "cell_font_family": {
+            "default": "Arial",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Cell Font Family",
+            "type": "string"
+          },
+          "cell_font_size": {
+            "default": 11,
+            "maximum": 72.0,
+            "minimum": 6.0,
+            "title": "Cell Font Size",
+            "type": "integer"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ExcelExportColumnSettings"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "date_bold": {
+            "default": true,
+            "title": "Date Bold",
+            "type": "boolean"
+          },
+          "date_font_color": {
+            "default": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Date Font Color",
+            "type": "string"
+          },
+          "date_font_family": {
+            "default": "Arial",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Date Font Family",
+            "type": "string"
+          },
+          "date_font_size": {
+            "default": 12,
+            "maximum": 72.0,
+            "minimum": 6.0,
+            "title": "Date Font Size",
+            "type": "integer"
+          },
+          "header_background_color": {
+            "default": "#FFFFFF",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Header Background Color",
+            "type": "string"
+          },
+          "header_bold": {
+            "default": true,
+            "title": "Header Bold",
+            "type": "boolean"
+          },
+          "header_font_color": {
+            "default": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Header Font Color",
+            "type": "string"
+          },
+          "header_font_family": {
+            "default": "Arial",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Header Font Family",
+            "type": "string"
+          },
+          "header_font_size": {
+            "default": 12,
+            "maximum": 72.0,
+            "minimum": 6.0,
+            "title": "Header Font Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns"
+        ],
+        "title": "ExcelExportTemplateSettings",
+        "type": "object"
+      },
+      "ExcusedPeriodOut": {
+        "properties": {
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "upcoming",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "start_date",
+          "end_date",
+          "reason",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ExcusedPeriodOut",
         "type": "object"
       },
       "FeedbackCategory": {
@@ -600,10 +960,14 @@
       "InvitationRegistrationRequest": {
         "properties": {
           "password": {
+            "maxLength": 200,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
           "username": {
+            "maxLength": 50,
+            "minLength": 3,
             "title": "Username",
             "type": "string"
           }
@@ -643,10 +1007,14 @@
             "title": "Device Name"
           },
           "password": {
+            "maxLength": 200,
+            "minLength": 1,
             "title": "Password",
             "type": "string"
           },
           "username": {
+            "maxLength": 50,
+            "minLength": 1,
             "title": "Username",
             "type": "string"
           }
@@ -676,6 +1044,7 @@
           "reason": {
             "anyOf": [
               {
+                "maxLength": 1000,
                 "type": "string"
               },
               {
@@ -709,6 +1078,12 @@
       "QuranProgressItem": {
         "properties": {
           "category": {
+            "enum": [
+              "new_memorization",
+              "recent_revision",
+              "old_revision",
+              "test"
+            ],
             "title": "Category",
             "type": "string"
           },
@@ -788,6 +1163,10 @@
             "type": "integer"
           },
           "range_type": {
+            "enum": [
+              "surah_ayah",
+              "page"
+            ],
             "title": "Range Type",
             "type": "string"
           },
@@ -909,6 +1288,7 @@
             "items": {
               "type": "integer"
             },
+            "maxItems": 1000,
             "title": "Student Ids",
             "type": "array"
           }
@@ -940,6 +1320,8 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
+            "minItems": 1,
             "title": "Absent Dates",
             "type": "array"
           }
@@ -956,6 +1338,8 @@
             "items": {
               "type": "integer"
             },
+            "maxItems": 500,
+            "minItems": 1,
             "title": "Warning Ids",
             "type": "array"
           }
@@ -984,6 +1368,7 @@
           "contact_phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -993,14 +1378,20 @@
             "title": "Contact Phone"
           },
           "password": {
+            "maxLength": 200,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
           "tahfiz_name": {
+            "maxLength": 100,
+            "minLength": 2,
             "title": "Tahfiz Name",
             "type": "string"
           },
           "username": {
+            "maxLength": 50,
+            "minLength": 3,
             "title": "Username",
             "type": "string"
           }
@@ -1148,6 +1539,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 2000,
                 "type": "string"
               },
               {
@@ -1168,6 +1560,8 @@
             "title": "Sheikh Id"
           },
           "status": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Status",
             "type": "string"
           }
@@ -1178,11 +1572,39 @@
         "title": "UpdateAttendanceRequest",
         "type": "object"
       },
+      "UpdateExcusedPeriodRequest": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "reason"
+        ],
+        "title": "UpdateExcusedPeriodRequest",
+        "type": "object"
+      },
       "UpdateExcusedWeekday": {
         "properties": {
           "note": {
             "anyOf": [
               {
+                "maxLength": 1000,
                 "type": "string"
               },
               {
@@ -1192,6 +1614,8 @@
             "title": "Note"
           },
           "weekday": {
+            "maximum": 6.0,
+            "minimum": 0.0,
             "title": "Weekday",
             "type": "integer"
           }
@@ -1215,6 +1639,7 @@
                 }
               ]
             },
+            "maxItems": 7,
             "title": "Weekdays",
             "type": "array"
           }
@@ -1261,6 +1686,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1272,6 +1698,15 @@
           "parent_type": {
             "anyOf": [
               {
+                "enum": [
+                  "أب",
+                  "أم",
+                  "أخ",
+                  "أخت",
+                  "جد",
+                  "جدة",
+                  "أرضي"
+                ],
                 "type": "string"
               },
               {
@@ -1283,6 +1718,8 @@
           "phone_number": {
             "anyOf": [
               {
+                "maxLength": 20,
+                "minLength": 3,
                 "type": "string"
               },
               {
@@ -1300,6 +1737,8 @@
           "data": {
             "anyOf": [
               {
+                "maxLength": 100000,
+                "minLength": 2,
                 "type": "string"
               },
               {
@@ -1311,6 +1750,8 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -1353,6 +1794,8 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -1364,6 +1807,7 @@
           "phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -1375,6 +1819,7 @@
           "whatsapp_group_id": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -1404,6 +1849,11 @@
           "status": {
             "anyOf": [
               {
+                "enum": [
+                  "active",
+                  "completed",
+                  "cancelled"
+                ],
                 "type": "string"
               },
               {
@@ -1445,6 +1895,8 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -1459,6 +1911,7 @@
                 "items": {
                   "$ref": "#/components/schemas/UpdateParentPhone"
                 },
+                "maxItems": 20,
                 "type": "array"
               },
               {
@@ -1470,6 +1923,7 @@
           "phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -1481,6 +1935,7 @@
           "profile_pic": {
             "anyOf": [
               {
+                "maxLength": 1000,
                 "type": "string"
               },
               {
@@ -1515,6 +1970,13 @@
           "status": {
             "anyOf": [
               {
+                "enum": [
+                  "مقيد",
+                  "مستبعد",
+                  "منقطع",
+                  "ضيف",
+                  "غير مقيد"
+                ],
                 "type": "string"
               },
               {
@@ -1526,6 +1988,7 @@
           "student_id": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -1540,7 +2003,86 @@
       },
       "UpdateTahfizSettingsRequest": {
         "properties": {
+          "attendance_sheikh_selection_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Sheikh Selection Enabled"
+          },
+          "attendance_status_colors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Status Colors"
+          },
+          "attendance_status_renames": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 20,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Status Renames"
+          },
           "attendance_statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Statuses"
+          },
+          "attendance_streak_alert_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Streak Alert Enabled"
+          },
+          "attendance_streak_limit": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Streak Limit"
+          },
+          "attendance_streak_reset_statuses": {
             "anyOf": [
               {
                 "items": {
@@ -1552,11 +2094,25 @@
                 "type": "null"
               }
             ],
-            "title": "Attendance Statuses"
+            "title": "Attendance Streak Reset Statuses"
+          },
+          "attendance_streak_status": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Streak Status"
           },
           "contact_phone": {
             "anyOf": [
               {
+                "maxLength": 20,
                 "type": "string"
               },
               {
@@ -1568,6 +2124,7 @@
           "description": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -1576,9 +2133,52 @@
             ],
             "title": "Description"
           },
+          "excel_export_templates": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ExcelExportTemplateSettings"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excel Export Templates"
+          },
+          "excused_absence_reset_statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excused Absence Reset Statuses"
+          },
+          "excused_absence_streak_limit": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excused Absence Streak Limit"
+          },
           "max_warnings": {
             "anyOf": [
               {
+                "maximum": 1000.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -1590,6 +2190,8 @@
           "month_start_day": {
             "anyOf": [
               {
+                "maximum": 28.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -1601,6 +2203,8 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -1620,9 +2224,22 @@
             ],
             "title": "Progress Tracking Enabled"
           },
+          "restrict_sheikh_student_access": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restrict Sheikh Student Access"
+          },
           "week_start_day": {
             "anyOf": [
               {
+                "maximum": 6.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -1634,6 +2251,7 @@
           "whatsend_api_key": {
             "anyOf": [
               {
+                "maxLength": 1000,
                 "type": "string"
               },
               {
@@ -1645,6 +2263,7 @@
           "whatsend_api_url": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -1653,9 +2272,21 @@
             ],
             "title": "Whatsend Api Url"
           },
+          "whatsend_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsend Enabled"
+          },
           "whatsend_groups_url": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -1673,6 +2304,8 @@
           "password": {
             "anyOf": [
               {
+                "maxLength": 200,
+                "minLength": 8,
                 "type": "string"
               },
               {
@@ -1684,6 +2317,10 @@
           "role": {
             "anyOf": [
               {
+                "enum": [
+                  "admin",
+                  "sheikh"
+                ],
                 "type": "string"
               },
               {
@@ -1706,6 +2343,8 @@
           "username": {
             "anyOf": [
               {
+                "maxLength": 50,
+                "minLength": 3,
                 "type": "string"
               },
               {
@@ -1723,6 +2362,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 2000,
                 "type": "string"
               },
               {
@@ -1747,6 +2387,8 @@
             "title": "Sheikh Id"
           },
           "status": {
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Status",
             "type": "string"
           },
@@ -1767,6 +2409,10 @@
         "properties": {
           "role": {
             "default": "admin",
+            "enum": [
+              "admin",
+              "sheikh"
+            ],
             "title": "Role",
             "type": "string"
           },
@@ -2132,6 +2778,25 @@
           }
         },
         "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Logout",
         "tags": [
           "auth"
         ]
@@ -5838,6 +6503,380 @@
         ]
       }
     },
+    "/students/{student_id}/excused-periods": {
+      "get": {
+        "operationId": "get_excused_periods_students__student_id__excused_periods_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExcusedPeriodOut"
+                  },
+                  "title": "Response Get Excused Periods Students  Student Id  Excused Periods Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Excused Periods",
+        "tags": [
+          "management"
+        ]
+      },
+      "post": {
+        "operationId": "create_excused_period_students__student_id__excused_periods_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExcusedPeriodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcusedPeriodOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Excused Period",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/students/{student_id}/excused-periods/{period_id}": {
+      "put": {
+        "operationId": "update_excused_period_students__student_id__excused_periods__period_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExcusedPeriodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcusedPeriodOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Excused Period",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/students/{student_id}/excused-periods/{period_id}/cancel": {
+      "post": {
+        "operationId": "cancel_excused_period_students__student_id__excused_periods__period_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcusedPeriodOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Excused Period",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/students/{student_id}/excused-periods/{period_id}/early-return": {
+      "post": {
+        "operationId": "end_excused_period_early_students__student_id__excused_periods__period_id__early_return_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EarlyReturnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcusedPeriodOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "End Excused Period Early",
+        "tags": [
+          "management"
+        ]
+      }
+    },
     "/students/{student_id}/excused-weekdays": {
       "get": {
         "operationId": "get_excused_weekdays_students__student_id__excused_weekdays_get",
@@ -6185,6 +7224,67 @@
           }
         ],
         "summary": "Move Student Sheikh",
+        "tags": [
+          "management"
+        ]
+      }
+    },
+    "/students/{student_id}/profile": {
+      "get": {
+        "operationId": "student_profile_students__student_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tahfiz-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tahfiz-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Student Profile",
         "tags": [
           "management"
         ]

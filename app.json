@@ -70,7 +70,8 @@
           "photosPermission": "نستخدم صورك فقط عند اختيار صورة ملف الطالب."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true

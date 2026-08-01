@@ -55,13 +55,16 @@ export default function OnlineDataScreen() {
       : data ? [data] : []
   const normalizedStudentQuery = studentQuery.trim().toLocaleLowerCase('ar')
   const items = params.screen === 'students'
-    ? rawItems.filter((item: Record<string, any>) => (
-      !normalizedStudentQuery
-      || String(item.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
-      || String(item.student_id ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
-      || String(item.phone ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
-      || String(item.sheikh?.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
-    ))
+    ? rawItems
+      .filter((item: Record<string, any>) => (
+        !normalizedStudentQuery
+        || String(item.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+        || String(item.student_id ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+        || String(item.phone ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+        || String(item.sheikh?.name ?? '').toLocaleLowerCase('ar').includes(normalizedStudentQuery)
+      ))
+      .sort((a: Record<string, any>, b: Record<string, any>) =>
+        String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ar', { sensitivity: 'base' }))
     : rawItems
   const canEdit = ['students', 'sheikhs', 'users', 'invitations', 'settings', 'filters'].includes(params.screen ?? '')
   const createOnly = params.screen === 'invitations'
@@ -257,6 +260,7 @@ const editorFields: Record<string, EditorField[]> = {
     { key: 'contact_phone', label: 'هاتف التواصل', keyboard: 'phone-pad', section: 'بيانات التحفيظ' },
     { key: 'attendance_statuses', label: 'حالات الحضور مفصولة بفاصلة', section: 'الحضور والحفظ' },
     { key: 'attendance_sheikh_selection_enabled', label: 'اختيار الشيخ أثناء تسجيل الحضور', boolean: true, section: 'الحضور والحفظ' },
+    { key: 'restrict_sheikh_student_access', label: 'تقييد الشيوخ بطلابهم', boolean: true, section: 'الحضور والحفظ' },
     { key: 'progress_tracking_enabled', label: 'تفعيل متابعة القرآن', boolean: true, section: 'الحضور والحفظ' },
     { key: 'attendance_streak_alert_enabled', label: 'تنبيه تكرار حالة حضور متتالية', boolean: true, section: 'التنبيهات' },
     { key: 'attendance_streak_limit', label: 'حد تكرار الحالة المتتالية', keyboard: 'number-pad', section: 'التنبيهات' },
@@ -313,6 +317,7 @@ function RecordEditor({
       next.attendance_streak_limit = item?.attendance_streak_limit ?? item?.excused_absence_streak_limit ?? 3
       next.attendance_streak_alert_enabled = item?.attendance_streak_alert_enabled ?? true
       next.attendance_sheikh_selection_enabled = item?.attendance_sheikh_selection_enabled ?? true
+      next.restrict_sheikh_student_access = item?.restrict_sheikh_student_access ?? true
       next.whatsend_enabled = item?.whatsend_enabled ?? true
     }
     setValues(next)

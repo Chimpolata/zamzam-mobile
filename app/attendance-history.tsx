@@ -85,7 +85,7 @@ export default function AttendanceHistoryScreen() {
            JOIN sessions se ON se.id=a.session_id
            LEFT JOIN sheikhs sh ON sh.id=a.sheikh_id
            WHERE a.tahfiz_id=?
-           ORDER BY se.date DESC,s.sort_order,s.name`,
+           ORDER BY se.date DESC,s.name`,
           activeTahfizId,
         ),
         db.getFirstAsync<{ value: string }>(

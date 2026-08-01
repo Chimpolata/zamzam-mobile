@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -967,6 +984,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/students/{student_id}/excused-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Excused Periods */
+        get: operations["get_excused_periods_students__student_id__excused_periods_get"];
+        put?: never;
+        /** Create Excused Period */
+        post: operations["create_excused_period_students__student_id__excused_periods_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/excused-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Excused Period */
+        put: operations["update_excused_period_students__student_id__excused_periods__period_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/excused-periods/{period_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Excused Period */
+        post: operations["cancel_excused_period_students__student_id__excused_periods__period_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/excused-periods/{period_id}/early-return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End Excused Period Early */
+        post: operations["end_excused_period_early_students__student_id__excused_periods__period_id__early_return_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students/{student_id}/excused-weekdays": {
         parameters: {
             query?: never;
@@ -1030,6 +1116,23 @@ export interface paths {
         put?: never;
         /** Move Student Sheikh */
         post: operations["move_student_sheikh_students__student_id__move_sheikh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Student Profile */
+        get: operations["student_profile_students__student_id__profile_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1385,6 +1488,21 @@ export interface components {
             /** Expected Version */
             expected_version?: number | null;
         };
+        /** CreateExcusedPeriodRequest */
+        CreateExcusedPeriodRequest: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
         /** CreateFeedbackRequest */
         CreateFeedbackRequest: {
             /**
@@ -1404,8 +1522,11 @@ export interface components {
         CreateParentPhone: {
             /** Name */
             name?: string | null;
-            /** Parent Type */
-            parent_type: string;
+            /**
+             * Parent Type
+             * @enum {string}
+             */
+            parent_type: "أب" | "أم" | "أخ" | "أخت" | "جد" | "جدة" | "أرضي";
             /** Phone Number */
             phone_number: string;
         };
@@ -1454,8 +1575,11 @@ export interface components {
             from_surah?: number | null;
             /** Notes */
             notes?: string | null;
-            /** Range Type */
-            range_type: string;
+            /**
+             * Range Type
+             * @enum {string}
+             */
+            range_type: "surah_ayah" | "page";
             /** Target Date */
             target_date?: string | null;
             /** To Ayah */
@@ -1471,11 +1595,8 @@ export interface components {
             birthday?: string | null;
             /** Name */
             name: string;
-            /**
-             * Parent Phones
-             * @default []
-             */
-            parent_phones: components["schemas"]["CreateParentPhone"][];
+            /** Parent Phones */
+            parent_phones?: components["schemas"]["CreateParentPhone"][];
             /** Phone */
             phone?: string | null;
             /** Registration Date */
@@ -1485,8 +1606,9 @@ export interface components {
             /**
              * Status
              * @default مقيد
+             * @enum {string}
              */
-            status: string;
+            status: "مقيد" | "مستبعد" | "منقطع" | "ضيف" | "غير مقيد";
             /** Student Id */
             student_id?: string | null;
         };
@@ -1500,8 +1622,9 @@ export interface components {
             /**
              * Role
              * @default sheikh
+             * @enum {string}
              */
-            role: string;
+            role: "admin" | "sheikh";
             /** Sheikh Id */
             sheikh_id?: number | null;
         };
@@ -1512,8 +1635,9 @@ export interface components {
             /**
              * Role
              * @default sheikh
+             * @enum {string}
              */
-            role: string;
+            role: "admin" | "sheikh";
             /** Sheikh Id */
             sheikh_id?: number | null;
             /** Username */
@@ -1523,6 +1647,167 @@ export interface components {
         CreateWarningRequest: {
             /** Reason */
             reason: string;
+        };
+        /** EarlyReturnRequest */
+        EarlyReturnRequest: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+        };
+        /** ExcelExportColumnSettings */
+        ExcelExportColumnSettings: {
+            /**
+             * Custom
+             * @default false
+             */
+            custom: boolean;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Show Header
+             * @default true
+             */
+            show_header: boolean;
+            /** Subcolumns */
+            subcolumns?: components["schemas"]["ExcelExportSubcolumnSettings"][];
+            /**
+             * Width
+             * @default 18
+             */
+            width: number;
+        };
+        /** ExcelExportSubcolumnSettings */
+        ExcelExportSubcolumnSettings: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Width
+             * @default 18
+             */
+            width: number;
+        };
+        /** ExcelExportTemplateSettings */
+        ExcelExportTemplateSettings: {
+            /**
+             * Attendance Date Format
+             * @default weekday_day_month_year
+             * @enum {string}
+             */
+            attendance_date_format: "day" | "day_month" | "day_month_year" | "weekday" | "weekday_day" | "weekday_day_month" | "weekday_day_month_year";
+            /**
+             * Cell Bold
+             * @default false
+             */
+            cell_bold: boolean;
+            /**
+             * Cell Font Color
+             * @default #000000
+             */
+            cell_font_color: string;
+            /**
+             * Cell Font Family
+             * @default Arial
+             */
+            cell_font_family: string;
+            /**
+             * Cell Font Size
+             * @default 11
+             */
+            cell_font_size: number;
+            /** Columns */
+            columns: components["schemas"]["ExcelExportColumnSettings"][];
+            /**
+             * Date Bold
+             * @default true
+             */
+            date_bold: boolean;
+            /**
+             * Date Font Color
+             * @default #000000
+             */
+            date_font_color: string;
+            /**
+             * Date Font Family
+             * @default Arial
+             */
+            date_font_family: string;
+            /**
+             * Date Font Size
+             * @default 12
+             */
+            date_font_size: number;
+            /**
+             * Header Background Color
+             * @default #FFFFFF
+             */
+            header_background_color: string;
+            /**
+             * Header Bold
+             * @default true
+             */
+            header_bold: boolean;
+            /**
+             * Header Font Color
+             * @default #000000
+             */
+            header_font_color: string;
+            /**
+             * Header Font Family
+             * @default Arial
+             */
+            header_font_family: string;
+            /**
+             * Header Font Size
+             * @default 12
+             */
+            header_font_size: number;
+        };
+        /** ExcusedPeriodOut */
+        ExcusedPeriodOut: {
+            /** Cancelled At */
+            cancelled_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "upcoming" | "active" | "completed" | "cancelled";
+            /** Student Id */
+            student_id: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * FeedbackCategory
@@ -1574,8 +1859,11 @@ export interface components {
         };
         /** QuranProgressItem */
         QuranProgressItem: {
-            /** Category */
-            category: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "new_memorization" | "recent_revision" | "old_revision" | "test";
             /** From Ayah */
             from_ayah?: number | null;
             /** From Page */
@@ -1593,8 +1881,11 @@ export interface components {
             notes?: string | null;
             /** Quality Score */
             quality_score: number;
-            /** Range Type */
-            range_type: string;
+            /**
+             * Range Type
+             * @enum {string}
+             */
+            range_type: "surah_ayah" | "page";
             /** Sheikh Id */
             sheikh_id?: number | null;
             /** Student Id */
@@ -1711,6 +2002,21 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** UpdateExcusedPeriodRequest */
+        UpdateExcusedPeriodRequest: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
         /** UpdateExcusedWeekday */
         UpdateExcusedWeekday: {
             /** Note */
@@ -1738,7 +2044,7 @@ export interface components {
             /** Name */
             name?: string | null;
             /** Parent Type */
-            parent_type?: string | null;
+            parent_type?: ("أب" | "أم" | "أخ" | "أخت" | "جد" | "جدة" | "أرضي") | null;
             /** Phone Number */
             phone_number?: string | null;
         };
@@ -1773,7 +2079,7 @@ export interface components {
             /** Notes */
             notes?: string | null;
             /** Status */
-            status?: string | null;
+            status?: ("active" | "completed" | "cancelled") | null;
             /** Target Date */
             target_date?: string | null;
         };
@@ -1794,18 +2100,44 @@ export interface components {
             /** Sheikh Id */
             sheikh_id?: number | null;
             /** Status */
-            status?: string | null;
+            status?: ("مقيد" | "مستبعد" | "منقطع" | "ضيف" | "غير مقيد") | null;
             /** Student Id */
             student_id?: string | null;
         };
         /** UpdateTahfizSettingsRequest */
         UpdateTahfizSettingsRequest: {
+            /** Attendance Sheikh Selection Enabled */
+            attendance_sheikh_selection_enabled?: boolean | null;
+            /** Attendance Status Colors */
+            attendance_status_colors?: {
+                [key: string]: string;
+            } | null;
+            /** Attendance Status Renames */
+            attendance_status_renames?: {
+                [key: string]: string;
+            } | null;
             /** Attendance Statuses */
             attendance_statuses?: string[] | null;
+            /** Attendance Streak Alert Enabled */
+            attendance_streak_alert_enabled?: boolean | null;
+            /** Attendance Streak Limit */
+            attendance_streak_limit?: number | null;
+            /** Attendance Streak Reset Statuses */
+            attendance_streak_reset_statuses?: string[] | null;
+            /** Attendance Streak Status */
+            attendance_streak_status?: string | null;
             /** Contact Phone */
             contact_phone?: string | null;
             /** Description */
             description?: string | null;
+            /** Excel Export Templates */
+            excel_export_templates?: {
+                [key: string]: components["schemas"]["ExcelExportTemplateSettings"];
+            } | null;
+            /** Excused Absence Reset Statuses */
+            excused_absence_reset_statuses?: string[] | null;
+            /** Excused Absence Streak Limit */
+            excused_absence_streak_limit?: number | null;
             /** Max Warnings */
             max_warnings?: number | null;
             /** Month Start Day */
@@ -1814,12 +2146,16 @@ export interface components {
             name?: string | null;
             /** Progress Tracking Enabled */
             progress_tracking_enabled?: boolean | null;
+            /** Restrict Sheikh Student Access */
+            restrict_sheikh_student_access?: boolean | null;
             /** Week Start Day */
             week_start_day?: number | null;
             /** Whatsend Api Key */
             whatsend_api_key?: string | null;
             /** Whatsend Api Url */
             whatsend_api_url?: string | null;
+            /** Whatsend Enabled */
+            whatsend_enabled?: boolean | null;
             /** Whatsend Groups Url */
             whatsend_groups_url?: string | null;
         };
@@ -1828,7 +2164,7 @@ export interface components {
             /** Password */
             password?: string | null;
             /** Role */
-            role?: string | null;
+            role?: ("admin" | "sheikh") | null;
             /** Sheikh Id */
             sheikh_id?: number | null;
             /** Username */
@@ -1852,8 +2188,9 @@ export interface components {
             /**
              * Role
              * @default admin
+             * @enum {string}
              */
-            role: string;
+            role: "admin" | "sheikh";
             /** Sheikh Id */
             sheikh_id?: number | null;
             /** Tahfiz Id */
@@ -2052,6 +2389,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4117,6 +4472,186 @@ export interface operations {
             };
         };
     };
+    get_excused_periods_students__student_id__excused_periods_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcusedPeriodOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_excused_period_students__student_id__excused_periods_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExcusedPeriodRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcusedPeriodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_excused_period_students__student_id__excused_periods__period_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExcusedPeriodRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcusedPeriodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_excused_period_students__student_id__excused_periods__period_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcusedPeriodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_excused_period_early_students__student_id__excused_periods__period_id__early_return_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EarlyReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcusedPeriodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_excused_weekdays_students__student_id__excused_weekdays_get: {
         parameters: {
             query?: never;
@@ -4278,6 +4813,39 @@ export interface operations {
                 "application/json": components["schemas"]["MoveStudentRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    student_profile_students__student_id__profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tahfiz-ID"?: number | null;
+            };
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

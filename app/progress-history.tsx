@@ -85,7 +85,7 @@ export default function ProgressHistoryScreen() {
          JOIN sessions se ON se.id=p.session_id
          LEFT JOIN sheikhs sh ON sh.id=p.sheikh_id
          WHERE p.tahfiz_id=?
-         ORDER BY se.date DESC,s.sort_order,s.name,p.category`,
+         ORDER BY se.date DESC,s.name,p.category`,
         activeTahfizId,
       ))
     } finally {

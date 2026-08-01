@@ -87,6 +87,7 @@ export default function StudentProfileScreen() {
   const profileImage = mediaUrl(remote?.profile_pic || student.profile_pic)
   const parentPhones = remote?.parent_phones || []
   const warnings = remote?.warnings || []
+  const excusedPeriods = remote?.excused_periods || []
 
   return (
     <>
@@ -130,6 +131,19 @@ export default function StudentProfileScreen() {
         </View>
 
         <View style={commonStyles.card}>
+          <Text style={styles.sectionTitle}>فترات الغياب بعذر ({excusedPeriods.length})</Text>
+          {excusedPeriods.length ? excusedPeriods.map((period: Record<string, any>) => (
+            <View key={period.id} style={styles.periodRow}>
+              <View style={styles.periodHeader}>
+                <Text style={styles.periodStatus}>{periodStatusLabel(period.status)}</Text>
+                <Text style={styles.periodReason}>{period.reason}</Text>
+              </View>
+              <Text style={styles.periodDates}>من {period.start_date} إلى {period.end_date}</Text>
+            </View>
+          )) : <Text style={commonStyles.subtitle}>{remote ? 'لا توجد فترات عذر مسجلة.' : 'تظهر عند توفر اتصال بالإنترنت.'}</Text>}
+        </View>
+
+        <View style={commonStyles.card}>
           <Text style={styles.sectionTitle}>الإنذارات ({warnings.length})</Text>
           {warnings.length ? warnings.slice(0, 8).map((warning: Record<string, any>) => (
             <View key={warning.id} style={styles.warningRow}><Text style={styles.warningTitle}>إنذار {warning.warning_number}</Text><Text style={styles.warningText}>{warning.reason}</Text></View>
@@ -143,6 +157,10 @@ export default function StudentProfileScreen() {
       </ScrollView>
     </>
   )
+}
+
+function periodStatusLabel(status: string) {
+  return ({ upcoming: 'قادمة', active: 'نشطة', completed: 'منتهية', cancelled: 'ملغاة' } as Record<string, string>)[status] || status
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -169,6 +187,11 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
   warningRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 9 },
   warningTitle: { color: colors.danger, textAlign: 'right', fontWeight: '900' },
   warningText: { color: colors.text, textAlign: 'right', marginTop: 3, fontSize: 12 },
+  periodRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
+  periodHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10 },
+  periodReason: { color: colors.text, textAlign: 'right', fontWeight: '800', flex: 1 },
+  periodStatus: { color: colors.warning, fontWeight: '800', fontSize: 11 },
+  periodDates: { color: colors.muted, textAlign: 'right', marginTop: 4, fontSize: 11 },
   links: { flexDirection: 'row-reverse', gap: 8 },
   link: { flex: 1, minHeight: 48, backgroundColor: colors.primarySurface, borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 8 },
   linkText: { color: colors.primaryDark, fontWeight: '900', textAlign: 'center', fontSize: 12 },

@@ -82,9 +82,11 @@ export default function WarningsScreen() {
 
   const visibleStudents = useMemo(() => {
     const normalized = studentQuery.trim().toLocaleLowerCase('ar')
-    return students.filter((item) => !normalized
-      || item.name.toLocaleLowerCase('ar').includes(normalized)
-      || item.sheikh?.name.toLocaleLowerCase('ar').includes(normalized))
+    return students
+      .filter((item) => !normalized
+        || item.name.toLocaleLowerCase('ar').includes(normalized)
+        || item.sheikh?.name.toLocaleLowerCase('ar').includes(normalized))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { sensitivity: 'base' }))
   }, [students, studentQuery])
 
   const openCreate = () => {

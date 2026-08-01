@@ -130,8 +130,8 @@ export default function SessionScreen() {
       db.getFirstAsync<Omit<Session, 'is_confirmed'> & { is_confirmed: number }>('SELECT * FROM sessions WHERE id=? AND tahfiz_id=?', sessionId, activeTahfizId),
       sessionAttendance<AttendanceRow>(db, sessionId),
       db.getAllAsync<LocalProgressRow>('SELECT * FROM quran_progress WHERE session_id=? ORDER BY student_id,category', sessionId),
-      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; attendance_streak_alert_enabled: number; attendance_sheikh_selection_enabled: number; attendance_streak_status: string; progress_tracking_enabled: number }>(
-        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,attendance_streak_alert_enabled,attendance_sheikh_selection_enabled,attendance_streak_status,progress_tracking_enabled FROM tahfiz WHERE id=?',
+      db.getFirstAsync<{ attendance_statuses: string; attendance_status_colors: string; excused_absence_streak_limit: number; attendance_streak_alert_enabled: number; attendance_sheikh_selection_enabled: number; restrict_sheikh_student_access: number; attendance_streak_status: string; progress_tracking_enabled: number }>(
+        'SELECT attendance_statuses,attendance_status_colors,excused_absence_streak_limit,attendance_streak_alert_enabled,attendance_sheikh_selection_enabled,restrict_sheikh_student_access,attendance_streak_status,progress_tracking_enabled FROM tahfiz WHERE id=?',
         activeTahfizId,
       ),
       db.getAllAsync<{ id: number }>(
@@ -281,9 +281,11 @@ export default function SessionScreen() {
   const present = useMemo(() => students.filter((item) => item.status === 'حاضر').length, [students])
   const filteredStudents = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('ar')
-    return students.filter(item => !normalized
-      || item.name.toLocaleLowerCase('ar').includes(normalized)
-      || item.phone?.toLocaleLowerCase('ar').includes(normalized))
+    return students
+      .filter(item => !normalized
+        || item.name.toLocaleLowerCase('ar').includes(normalized)
+        || item.phone?.toLocaleLowerCase('ar').includes(normalized))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { sensitivity: 'base' }))
   }, [students, query])
   if (!session) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
 

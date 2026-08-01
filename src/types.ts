@@ -50,6 +50,7 @@ export interface User {
     excused_absence_reset_statuses: string[]
     attendance_streak_alert_enabled: boolean
     attendance_sheikh_selection_enabled: boolean
+    restrict_sheikh_student_access: boolean
     attendance_streak_status: string
     attendance_streak_limit: number
     attendance_streak_reset_statuses: string[]
@@ -140,6 +141,7 @@ export interface Bootstrap {
     excused_absence_reset_statuses: string[]
     attendance_streak_alert_enabled: boolean
     attendance_sheikh_selection_enabled: boolean
+    restrict_sheikh_student_access: boolean
     attendance_streak_status: string
     attendance_streak_limit: number
     attendance_streak_reset_statuses: string[]
