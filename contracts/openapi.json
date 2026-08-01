@@ -1073,17 +1073,74 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "MoveStudentDestinationOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MoveStudentDestinationOut",
+        "type": "object"
+      },
       "MoveStudentRequest": {
         "properties": {
+          "expected_current_sheikh_id": {
+            "title": "Expected Current Sheikh Id",
+            "type": "integer"
+          },
           "sheikh_id": {
             "title": "Sheikh Id",
             "type": "integer"
           }
         },
         "required": [
-          "sheikh_id"
+          "sheikh_id",
+          "expected_current_sheikh_id"
         ],
         "title": "MoveStudentRequest",
+        "type": "object"
+      },
+      "MoveStudentResponse": {
+        "properties": {
+          "destination_sheikh": {
+            "$ref": "#/components/schemas/MoveStudentDestinationOut"
+          },
+          "from_sheikh_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Sheikh Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "message",
+          "student_id",
+          "from_sheikh_id",
+          "destination_sheikh"
+        ],
+        "title": "MoveStudentResponse",
         "type": "object"
       },
       "PlatformTahfizActionRequest": {
@@ -7381,7 +7438,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MoveStudentResponse"
+                }
               }
             },
             "description": "Successful Response"

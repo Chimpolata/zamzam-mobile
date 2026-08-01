@@ -1893,10 +1893,29 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** MoveStudentDestinationOut */
+        MoveStudentDestinationOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** MoveStudentRequest */
         MoveStudentRequest: {
+            /** Expected Current Sheikh Id */
+            expected_current_sheikh_id: number;
             /** Sheikh Id */
             sheikh_id: number;
+        };
+        /** MoveStudentResponse */
+        MoveStudentResponse: {
+            destination_sheikh: components["schemas"]["MoveStudentDestinationOut"];
+            /** From Sheikh Id */
+            from_sheikh_id: number | null;
+            /** Message */
+            message: string;
+            /** Student Id */
+            student_id: number;
         };
         /** PlatformTahfizActionRequest */
         PlatformTahfizActionRequest: {
@@ -4941,7 +4960,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["MoveStudentResponse"];
                 };
             };
             /** @description Validation Error */
