@@ -149,9 +149,9 @@ export default function SessionScreen() {
       sheikh_id: pendingSheikhsRef.current[row.id] ?? row.sheikh_id,
     })))
     setProgress(progressRows)
-    setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق'])
+    setStatuses(tahfiz ? JSON.parse(tahfiz.attendance_statuses) : ['حاضر', 'غياب', 'غياب بعذر', 'لا ينطبق', 'غير مستوفي'])
     setStatusColors(tahfiz ? JSON.parse(tahfiz.attendance_status_colors) : {
-      'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
+      'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky', 'غير مستوفي': 'violet',
     })
     setThresholdLimit(tahfiz?.excused_absence_streak_limit ?? 3)
     setThresholdEnabled(Boolean(tahfiz?.attendance_streak_alert_enabled))

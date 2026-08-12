@@ -310,7 +310,7 @@ function RecordEditor({
     }
     if (screen === 'settings') {
       next.attendance_status_colors = item?.attendance_status_colors ?? {
-        'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky',
+        'حاضر': 'green', 'غياب': 'slate', 'غياب بعذر': 'amber', 'لا ينطبق': 'sky', 'غير مستوفي': 'violet',
       }
       next.excused_absence_reset_statuses = item?.attendance_streak_reset_statuses ?? item?.excused_absence_reset_statuses ?? ['حاضر']
       next.attendance_streak_status = item?.attendance_streak_status ?? 'غياب بعذر'
