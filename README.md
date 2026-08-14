@@ -1,55 +1,97 @@
-# Zamzam mobile
+This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-Expo/React Native client for Android and iOS. The app caches every active
-Tahfiz membership, stores attendance and Qur'an progress in encrypted SQLite,
-and synchronizes a durable mutation outbox with the FastAPI backend.
+# Getting Started
 
-## Development
+> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
-1. Copy `.env.example` to `.env.local` and set `EXPO_PUBLIC_API_URL`.
-2. Install dependencies with `npm install`.
-3. Run `npm run typecheck`.
-4. Create a development build with `npx eas build --profile development`.
-5. Start Metro with `npm start`.
+## Step 1: Start Metro
 
-SQLCipher is enabled through the `expo-sqlite` config plugin. Use a development
-build rather than Expo Go when testing the encrypted production database.
+First, you will need to run **Metro**, the JavaScript build tool for React Native.
 
-## Offline contract
+To start the Metro dev server, run the following command from the root of your React Native project:
 
-- The first login and administrative screens require a connection.
-- Open sessions and 90 days of history are cached for every active membership.
-- Attendance and Qur'an progress edits are saved immediately to the local
-  outbox and survive restarts.
-- Session confirmation is online-only and drains the outbox first.
-- Concurrent edits to the same row appear in the conflict review screen.
-- Foreground/manual sync is authoritative; the OS also receives a best-effort
-  hourly background task and may defer it for battery or scheduling reasons.
+```sh
+# Using npm
+npm start
 
-Management, reporting, invitations, users, saved filters, platform support, and
-Tahfiz settings use the existing online API. Administrative changes deliberately
-remain online-only so they never bypass server authorization or validation.
+# OR using Yarn
+yarn start
+```
 
-## Release
+## Step 2: Build and run your app
 
-The `apk` EAS profile produces a signed, directly installable Android APK. The
-`production` profile produces an AAB for Google Play.
+With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
 
-Before the release workflow can run for the first time:
+### Android
 
-1. Install dependencies: `cd mobile && npm ci`.
-2. Sign in to Expo: `npx eas-cli login`.
-3. Link or create the EAS project: `npx eas-cli init`. Commit the generated
-   `extra.eas.projectId` value in `app.json`; it is a public project identifier,
-   not a secret.
-4. Run `npx eas-cli build --platform android --profile apk` once interactively.
-   This lets EAS create or select the Android signing key.
-5. Create an Expo access token and save it in the GitHub repository as the
-   Actions secret `EXPO_TOKEN`.
+```sh
+# Using npm
+npm run android
 
-Run the **Release Android APK** workflow manually to get an Actions artifact
-without creating a release. Supply a tag such as `v1.0.0` to also create or
-update a GitHub Release. Releases are never triggered by a branch or tag push.
+# OR using Yarn
+yarn android
+```
 
-The build embeds `https://zamzam-api.fly.dev` as its API endpoint. EAS manages
-the signing key; no keystore or password is stored in Git.
+### iOS
+
+For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+
+The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+
+```sh
+bundle install
+```
+
+Then, and every time you update your native dependencies, run:
+
+```sh
+bundle exec pod install
+```
+
+For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+
+```sh
+# Using npm
+npm run ios
+
+# OR using Yarn
+yarn ios
+```
+
+If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+
+This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+
+## Step 3: Modify your app
+
+Now that you have successfully run the app, let's make changes!
+
+Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+
+When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+
+- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
+- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+
+## Congratulations! :tada:
+
+You've successfully run and modified your React Native App. :partying_face:
+
+### Now what?
+
+- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
+- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+
+# Troubleshooting
+
+If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+
+# Learn More
+
+To learn more about React Native, take a look at the following resources:
+
+- [React Native Website](https://reactnative.dev) - learn more about React Native.
+- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
+- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
+- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
+- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
